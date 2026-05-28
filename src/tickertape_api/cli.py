@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any, cast
 
+from . import auth_capture
 from .auth_capture import (
     DEFAULT_CREDENTIALS_PATH,
     capture_credentials_interactively,
@@ -64,9 +65,33 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("auth-status", help="Show whether stored Tickertape credentials exist")
     p.add_argument("--path", default=str(DEFAULT_CREDENTIALS_PATH), help="Credentials JSON path")
 
+    p = sub.add_parser(
+        "auth-login",
+        help="Log in to Tickertape via phone-number OTP and save credentials",
+    )
+    p.add_argument("phone", help="Phone number (digits only, without country code)")
+    p.add_argument(
+        "--country-code", default="+91", help="Country code (default: +91)"
+    )
+    p.add_argument("--otp", default=None, help="6-digit OTP (reads from stdin if omitted)")
+    p.add_argument(
+        "--out", default=str(DEFAULT_CREDENTIALS_PATH), help="Credentials JSON path"
+    )
+    p.add_argument("--headless", action="store_true", help="Run browser headlessly")
+
     args = parser.parse_args(argv)
     if args.cmd == "auth-capture":
         path = capture_credentials_interactively(output_path=args.out, headless=args.headless)
+        print(f"Saved Tickertape credentials to {path}")
+        return 0
+    if args.cmd == "auth-login":
+        path = auth_capture.capture_credentials_via_otp(
+            phone=args.phone,
+            country_code=args.country_code,
+            otp=args.otp,
+            output_path=args.out,
+            headless=args.headless,
+        )
         print(f"Saved Tickertape credentials to {path}")
         return 0
     if args.cmd == "auth-set":

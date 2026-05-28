@@ -114,7 +114,7 @@ def capture_credentials_interactively(
     """
 
     try:
-        from playwright.sync_api import sync_playwright  # type: ignore[import-not-found]
+        from playwright.sync_api import sync_playwright
     except ImportError as exc:  # pragma: no cover - depends on optional extra
         raise RuntimeError(
             "Install auth capture dependencies with: pip install 'tickertape-api-client[auth]' "
@@ -130,6 +130,134 @@ def capture_credentials_interactively(
             "Log in to Tickertape in the opened browser window, then press Enter here "
             "to save the session credentials..."
         )
+        storage = _read_page_storage(page)
+        cookies = context.cookies()
+        auth_token = choose_auth_token(storage)
+        cookie_header = build_cookie_header(cookies)
+        browser.close()
+
+    return write_credentials_file(output_path, auth_token=auth_token, cookie_header=cookie_header)
+
+
+def capture_credentials_via_otp(
+    *,
+    phone: str,
+    country_code: str = "+91",
+    otp: str | None = None,
+    output_path: str | Path = DEFAULT_CREDENTIALS_PATH,
+    headless: bool = False,
+) -> Path:
+    """Log in to Tickertape via phone-number OTP flow and persist session credentials.
+
+    This automates the full login: opens Tickertape, clicks the login modal,
+    enters phone + country code, requests OTP, enters the OTP, and captures
+    cookies / auth token after a successful login.
+
+    Args:
+        phone: The phone number to log in with (digits only, without country code).
+        country_code: The country code (default ``"+91"``).
+        otp: The 6-digit OTP. If ``None`` (default), the function reads the OTP
+             interactively from stdin (useful for SMS-delivered codes).
+        output_path: Where to write the credentials JSON file.
+        headless: Whether to run the browser in headless mode.
+
+    Returns:
+        The path to the credentials file that was written.
+
+    Requires ``playwright`` (``pip install 'tickertape-api-client[auth]'``).
+    """
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError as exc:  # pragma: no cover - depends on optional extra
+        raise RuntimeError(
+            "Install auth capture dependencies with: pip install 'tickertape-api-client[auth]' "
+            "and then run: python -m playwright install chromium"
+        ) from exc
+
+    if otp is None:
+        otp = input("Enter the 6-digit OTP sent to your phone: ").strip()
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=headless)
+        context = browser.new_context()
+        page = context.new_page()
+        page.goto(TICKERTAPE_LOGIN_URL, wait_until="domcontentloaded")
+
+        # --- Step 1: Open the login modal ---
+        page.click('button:has-text("Sign Up")')
+        page.wait_for_selector('text=Enter your phone number', timeout=10_000)
+
+        # --- Step 2: Select country code if needed ---
+        cc_button = page.query_selector(".phone-input-wrapper [role=\"combobox\"], "
+                                        "div:has(> select) >> text=\\+91, "
+                                        "[class*=\"country\" i]")
+        if cc_button:
+            cc_button.click()
+            option = page.query_selector(f"text={country_code}")
+            if option:
+                option.click()
+            else:
+                # Fallback: try clicking the default dropdown and picking from options
+                page.wait_for_timeout(500)
+                page.evaluate(
+                    f"""
+                    () => {{
+                        const selects = document.querySelectorAll('select');
+                        for (const s of selects) {{
+                            if (s.textContent.includes('India')) {{
+                                s.value = '{country_code}';
+                                s.dispatchEvent(new Event('change', {{bubbles: true}}));
+                            }}
+                        }}
+                    }}
+                    """
+                )
+
+        # --- Step 3: Enter phone number ---
+        phone_input = page.query_selector(
+            'input[type="tel"], input[placeholder*="Phone"], '
+            "input:not([type=\"hidden\"]):below(:text(\"Enter your phone number\"))"
+        )
+        if phone_input:
+            phone_input.fill(phone)
+        else:
+            # Fallback: find any visible text input in the modal
+            page.fill(
+                "[role=\"dialog\"] input:not([type=\"hidden\"]), "
+                "text=Enter your phone number >> xpath=../..//input",
+                phone,
+            )
+
+        # --- Step 4: Click "Get OTP" ---
+        page.click('button:has-text("Get OTP")')
+        page.wait_for_timeout(2000)
+
+        # --- Step 5: Enter OTP ---
+        otp_input = page.query_selector(
+            'input[type="tel"], input[placeholder*="OTP"], '
+            'input[inputmode="numeric"][maxlength="6"]'
+        )
+        if otp_input:
+            otp_input.fill(otp)
+        else:
+            page.fill("[role=\"dialog\"] input:not([type=\"hidden\"])", otp)
+
+        # --- Step 6: Submit OTP ---
+        page.click('button:has-text("Verify"), button:has-text("Submit"), button:has-text("Login")')
+        page.wait_for_timeout(3000)
+
+        # If there's a "Continue" or "Proceed" button after OTP verification, click it
+        try:
+            page.click(
+                'button:has-text("Continue"), button:has-text("Proceed"), '
+                'button:has-text("Done")',
+                timeout=3000,
+            )
+            page.wait_for_timeout(2000)
+        except Exception:
+            pass  # No additional step needed
+
+        # --- Step 7: Capture credentials ---
         storage = _read_page_storage(page)
         cookies = context.cookies()
         auth_token = choose_auth_token(storage)
