@@ -15,6 +15,7 @@ from .auth_capture import (
     write_credentials_file,
 )
 from .client import TickertapeClient
+from .portfolio_client import PortfolioClient
 
 
 def _print(data: Any) -> None:
@@ -79,6 +80,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--headless", action="store_true", help="Run browser headlessly")
 
+    # ---- portfolio commands ----
+    p = sub.add_parser("portfolio-summary", help="User portfolio summary (MF + stocks + watchlists)")
+    p = sub.add_parser("portfolio-mf", help="User mutual fund holdings")
+    p = sub.add_parser("portfolio-stocks", help="User stock/equity holdings")
+    p = sub.add_parser("portfolio-watchlists", help="User watchlists")
+    p = sub.add_parser("portfolio-quotes", help="Live quotes for portfolio stocks")
+
     args = parser.parse_args(argv)
     if args.cmd == "auth-capture":
         path = capture_credentials_interactively(output_path=args.out, headless=args.headless)
@@ -114,6 +122,21 @@ def main(argv: list[str] | None = None) -> int:
                 "cookie_header: "
                 f"{'yes' if payload.get('cookie_header') or payload.get('cookie') else 'no'}"
             )
+        return 0
+
+    # ---- portfolio commands (authenticated) ----
+    if args.cmd.startswith("portfolio"):
+        with PortfolioClient() as pc:
+            if args.cmd == "portfolio-summary":
+                _print(pc.portfolio_summary())
+            elif args.cmd == "portfolio-mf":
+                _print(pc.mf_holdings())
+            elif args.cmd == "portfolio-stocks":
+                _print(pc.stock_holdings())
+            elif args.cmd == "portfolio-watchlists":
+                _print(pc.watchlists())
+            elif args.cmd == "portfolio-quotes":
+                _print(pc.quote_portfolio())
         return 0
 
     with TickertapeClient.from_env() as client:

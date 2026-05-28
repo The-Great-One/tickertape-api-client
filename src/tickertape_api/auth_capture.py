@@ -19,20 +19,33 @@ DEFAULT_CREDENTIALS_PATH = Path.home() / ".config" / "tickertape-api-client" / "
 TICKERTAPE_LOGIN_URL = "https://www.tickertape.in/"
 
 
-def build_cookie_header(
+def _filter_tickertape_cookies(
     cookies: Sequence[Mapping[str, Any]], *, domain_suffix: str = "tickertape.in"
-) -> str:
-    """Build a Cookie header from Playwright cookies for Tickertape domains only."""
-
-    pairs: list[str] = []
+) -> list[tuple[str, str]]:
+    """Return (name, value) pairs for Tickertape-domain cookies."""
+    pairs: list[tuple[str, str]] = []
     suffix = domain_suffix.lstrip(".")
     for cookie in cookies:
         domain = str(cookie.get("domain", "")).lstrip(".")
         name = str(cookie.get("name", ""))
         value = str(cookie.get("value", ""))
         if name and (domain == suffix or domain.endswith(f".{suffix}")):
-            pairs.append(f"{name}={value}")
-    return "; ".join(pairs)
+            pairs.append((name, value))
+    return pairs
+
+
+def build_cookie_header(
+    cookies: Sequence[Mapping[str, Any]], *, domain_suffix: str = "tickertape.in"
+) -> str:
+    """Build a Cookie header from Playwright cookies for Tickertape domains only."""
+    return "; ".join(f"{n}={v}" for n, v in _filter_tickertape_cookies(cookies, domain_suffix=domain_suffix))
+
+
+def build_cookie_dict(
+    cookies: Sequence[Mapping[str, Any]], *, domain_suffix: str = "tickertape.in"
+) -> dict[str, str]:
+    """Build a cookie dict for curl_cffi (``{name: value}``) from Playwright cookies."""
+    return dict(_filter_tickertape_cookies(cookies, domain_suffix=domain_suffix))
 
 
 def choose_auth_token(storage: Mapping[str, Any]) -> str | None:
@@ -65,6 +78,7 @@ def write_credentials_file(
     *,
     auth_token: str | None = None,
     cookie_header: str | None = None,
+    cookie_dict: dict[str, str] | None = None,
 ) -> Path:
     """Persist credentials with private filesystem permissions."""
 
@@ -73,7 +87,11 @@ def write_credentials_file(
     os.chmod(credentials_path.parent, 0o700)
     payload = {
         key: value
-        for key, value in {"auth_token": auth_token, "cookie_header": cookie_header}.items()
+        for key, value in {
+            "auth_token": auth_token,
+            "cookie_header": cookie_header,
+            "cookie_dict": cookie_dict,
+        }.items()
         if value
     }
     credentials_path.write_text(json.dumps(payload, indent=2) + "\n")
@@ -101,6 +119,41 @@ def _read_page_storage(page: Any) -> dict[str, str]:
     return {str(key): str(value) for key, value in data.items() if value is not None}
 
 
+def _launch_browser(
+    *,
+    headless: bool = False,
+) -> tuple[Any, Any, Any]:
+    """Launch a stealth browser and return (browser, context, page).
+
+    Tries CloakBrowser first (C++-level stealth, bypasses bot detection),
+    falls back to Playwright.
+    """
+    try:
+        from cloakbrowser import launch
+
+        browser = launch(headless=headless, humanize=True)
+        context = browser.new_context()
+        page = context.new_page()
+        return browser, context, page
+    except ImportError:
+        pass
+
+    try:
+        from playwright.sync_api import sync_playwright
+
+        pw = sync_playwright().start()
+        browser = pw.chromium.launch(headless=headless, channel="chrome")
+        context = browser.new_context()
+        page = context.new_page()
+        return browser, context, page
+    except ImportError as exc:  # pragma: no cover - depends on optional extra
+        raise RuntimeError(
+            "Install auth capture dependencies with: "
+            "pip install 'tickertape-api-client[auth]' "
+            "and then run: python -m playwright install chromium"
+        ) from exc
+
+
 def capture_credentials_interactively(
     *,
     output_path: str | Path = DEFAULT_CREDENTIALS_PATH,
@@ -112,22 +165,11 @@ def capture_credentials_interactively(
     Requires optional dependency ``playwright`` and browser installation via
     ``python -m playwright install chromium``.
     """
+    browser, context, page = _launch_browser(headless=headless)
 
     try:
-        from playwright.sync_api import sync_playwright
-    except ImportError as exc:  # pragma: no cover - depends on optional extra
-        raise RuntimeError(
-            "Install auth capture dependencies with: pip install 'tickertape-api-client[auth]' "
-            "and then run: python -m playwright install chromium"
-        ) from exc
-
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(
-            headless=headless, channel="chrome"
-        )
-        context = browser.new_context()
-        page = context.new_page()
         page.goto(login_url, wait_until="domcontentloaded")
+        page.wait_for_timeout(3000)
         input(
             "Log in to Tickertape in the opened browser window, then press Enter here "
             "to save the session credentials..."
@@ -136,9 +178,13 @@ def capture_credentials_interactively(
         cookies = context.cookies()
         auth_token = choose_auth_token(storage)
         cookie_header = build_cookie_header(cookies)
+        cookie_dict_ = build_cookie_dict(cookies)
+    finally:
         browser.close()
 
-    return write_credentials_file(output_path, auth_token=auth_token, cookie_header=cookie_header)
+    return write_credentials_file(
+        output_path, auth_token=auth_token, cookie_header=cookie_header, cookie_dict=cookie_dict_
+    )
 
 
 def capture_credentials_via_otp(
@@ -168,39 +214,23 @@ def capture_credentials_via_otp(
 
     Requires ``playwright`` (``pip install 'tickertape-api-client[auth]'``).
     """
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError as exc:  # pragma: no cover - depends on optional extra
-        raise RuntimeError(
-            "Install auth capture dependencies with: pip install 'tickertape-api-client[auth]' "
-            "and then run: python -m playwright install chromium"
-        ) from exc
-
     if otp is None:
         import sys as _sys
-        otp = input("Enter the 6-digit OTP sent to your phone: ").strip()
+
         if _sys.stdin.isatty():
-            # Only prompt if we're in an interactive terminal
-            pass
+            otp = input("Enter the 6-digit OTP sent to your phone: ").strip()
         else:
             raise RuntimeError(
                 "OTP required. Set --otp <code> or run in an interactive terminal."
             ) from None
 
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(
-            headless=headless, channel="chrome"
-        )
-        context = browser.new_context()
-        page = context.new_page()
+    browser, context, page = _launch_browser(headless=headless)
 
-        # Navigate to the #login-init anchor which auto-opens the modal
+    try:
         page.goto("https://www.tickertape.in/#login-init", wait_until="domcontentloaded")
         page.wait_for_timeout(3000)
 
         # --- Find and fill the phone input ---
-        # Tickertape uses input#phoneNumber (type=number); must use keystroke
-        # typing so React onChange fires and enables the "Get OTP" button.
         phone_input = page.wait_for_selector(
             '#phoneNumber, input[placeholder*="Phone"]',
             timeout=15_000,
@@ -229,9 +259,7 @@ def capture_credentials_via_otp(
         )
         page.wait_for_timeout(3000)
 
-        # --- Step 4: Enter OTP ---
-        # Tickertape shows 6 individual digit inputs after requesting OTP.
-        # Use JS to find OTP fields and simulate typing so React onChange fires.
+        # --- Enter OTP ---
         page.evaluate(
             f"""() => {{
                 const inputs = document.querySelectorAll(
@@ -271,7 +299,7 @@ def capture_credentials_via_otp(
         )
         page.wait_for_timeout(1000)
 
-        # Submit OTP via JavaScript (same modal-overlay issue)
+        # Submit OTP via JavaScript
         page.wait_for_timeout(1000)
         page.evaluate(
             """
@@ -288,14 +316,18 @@ def capture_credentials_via_otp(
             """
         )
 
-        # --- Step 6: Wait for login to complete (redirect to home) ---
+        # Wait for login to complete
         page.wait_for_timeout(5000)
 
-        # --- Step 7: Capture credentials ---
+        # Capture credentials
         storage = _read_page_storage(page)
         cookies = context.cookies()
         auth_token = choose_auth_token(storage)
         cookie_header = build_cookie_header(cookies)
+        cookie_dict_ = build_cookie_dict(cookies)
+    finally:
         browser.close()
 
-    return write_credentials_file(output_path, auth_token=auth_token, cookie_header=cookie_header)
+    return write_credentials_file(
+        output_path, auth_token=auth_token, cookie_header=cookie_header, cookie_dict=cookie_dict_
+    )
