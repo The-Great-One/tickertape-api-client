@@ -1,0 +1,6 @@
+site_name: tickertape-api-client
+site_description: Python client for public Tickertape web endpoints
+theme:
+  name: material
+nav:
+  - Home: index.md
