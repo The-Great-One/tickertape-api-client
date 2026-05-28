@@ -12,14 +12,18 @@ GET https://api.tickertape.in/mutualfunds/{mfId}/holdings
 
 ## Installation
 
-```bash
-pip install tickertape-api-client
-```
-
-From GitHub:
+This project is currently installed from GitHub; it is **not published on PyPI** unless you explicitly publish a release later.
 
 ```bash
 pip install git+https://github.com/The-Great-One/tickertape-api-client.git
+```
+
+For local development:
+
+```bash
+git clone https://github.com/The-Great-One/tickertape-api-client.git
+cd tickertape-api-client
+pip install -e ".[dev]"
 ```
 
 ## Quick start
@@ -202,6 +206,34 @@ tt.mutual_fund_screener({"match": {"option": ["Growth"]}, "sortBy": "aum", "sort
 ```
 
 Some screener queries may require auth server-side. The client exposes the endpoints but will raise clear `TickertapeHTTPError` / `TickertapeAPIError` if Tickertape rejects a request.
+
+Premium screener fields can be requested only with a legitimate logged-in Tickertape session that has access to them. The client does not log in, bypass access controls, or store credentials; it only forwards user-supplied auth material:
+
+```python
+from tickertape_api import TickertapeClient
+
+# Option 1: pass explicitly
+client = TickertapeClient(
+    auth_token="<bearer-token>",
+    cookie_header="<raw Cookie header from your browser session>",
+)
+
+# Option 2: read from env
+# export TICKERTAPE_AUTH_TOKEN='...'
+# export TICKERTAPE_COOKIE='...'
+client = TickertapeClient.from_env()
+
+client.screener_query({
+    "match": {},
+    "sortBy": "mrktCapf",
+    "sortOrder": -1,
+    "project": ["estrvng"],  # premium: 1Y Forward Revenue Growth
+    "offset": 0,
+    "count": 10,
+})
+```
+
+Without access, Tickertape currently returns a clear 403 payload such as `No access for estrvng`.
 
 ### ETFs and indices
 

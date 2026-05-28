@@ -103,6 +103,44 @@ def test_screener_query_uses_post_body():
         assert route.calls.last.request.content == b'{"match":{"option":["Growth"]},"sortBy":"aum","sortOrder":-1}'
 
 
+def test_stock_screener_query_uses_post_body():
+    query = {"match": {}, "sortBy": "mrktCapf", "sortOrder": -1, "offset": 0, "count": 5}
+    with respx.mock(assert_all_called=True) as rsps:
+        route = rsps.post("https://api.tickertape.in/screener/query").mock(
+            return_value=httpx.Response(200, json={"success": True, "data": {"results": []}})
+        )
+        assert TickertapeClient().screener_query(query) == {"results": []}
+        assert route.calls.last.request.content == (
+            b'{"match":{},"sortBy":"mrktCapf","sortOrder":-1,"offset":0,"count":5}'
+        )
+
+
+def test_auth_token_and_cookie_header_are_sent_to_premium_endpoints():
+    with respx.mock(assert_all_called=True) as rsps:
+        route = rsps.post("https://api.tickertape.in/screener/query").mock(
+            return_value=httpx.Response(200, json={"success": True, "data": {"results": []}})
+        )
+        TickertapeClient(auth_token="abc123", cookie_header="sessionid=s1").screener_query(
+            {"project": ["premiumMetric"]}
+        )
+        request = route.calls.last.request
+        assert request.headers["authorization"] == "Bearer abc123"
+        assert request.headers["cookie"] == "sessionid=s1"
+
+
+def test_from_env_reads_auth_token_and_cookie_header(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("TICKERTAPE_AUTH_TOKEN", "env-token")
+    monkeypatch.setenv("TICKERTAPE_COOKIE", "sessionid=env-session")
+    with respx.mock(assert_all_called=True) as rsps:
+        route = rsps.get("https://api.tickertape.in/screener/filters").mock(
+            return_value=httpx.Response(200, json={"success": True, "data": {}})
+        )
+        TickertapeClient.from_env().screener_filters()
+        request = route.calls.last.request
+        assert request.headers["authorization"] == "Bearer env-token"
+        assert request.headers["cookie"] == "sessionid=env-session"
+
+
 def test_unsuccessful_payload_raises_api_error():
     with respx.mock(assert_all_called=True) as rsps:
         rsps.get("https://api.tickertape.in/stocks/info/BAD").mock(

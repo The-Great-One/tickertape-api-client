@@ -3,12 +3,14 @@
 These endpoints are reverse-engineered from Tickertape's public web application.
 They are undocumented and may change without notice. This package intentionally
 ships with conservative defaults: timeouts, browser-like headers, clear errors,
-and no credential handling.
+and optional user-supplied auth forwarding for endpoints that require a
+legitimate logged-in/premium session.
 """
 
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Mapping, Sequence
 from typing import Any, Literal, cast
 
@@ -27,6 +29,12 @@ class TickertapeClient:
         timeout: Per-request timeout in seconds.
         client: Optional preconfigured ``httpx.Client`` for testing or advanced use.
         user_agent: User-Agent header sent with each request.
+        auth_token: Optional user-supplied Tickertape bearer token for endpoints
+            that require a logged-in/premium session. The client never obtains or
+            refreshes this token itself.
+        cookie_header: Optional raw ``Cookie`` header copied from a legitimate
+            logged-in Tickertape browser session.
+        extra_headers: Optional additional headers to merge into each request.
     """
 
     api_base = "https://api.tickertape.in"
@@ -43,6 +51,9 @@ class TickertapeClient:
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
             "AppleWebKit/537.36 Chrome/125 Safari/537.36 tickertape-api-client/0.1"
         ),
+        auth_token: str | None = None,
+        cookie_header: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
     ) -> None:
         self._owns_client = client is None
         self._client = client or httpx.Client(timeout=timeout, follow_redirects=True)
@@ -52,6 +63,29 @@ class TickertapeClient:
             "referer": "https://www.tickertape.in/",
             "origin": "https://www.tickertape.in",
         }
+        if auth_token:
+            token = auth_token.strip()
+            self._headers["authorization"] = token if token.lower().startswith("bearer ") else f"Bearer {token}"
+        if cookie_header:
+            self._headers["cookie"] = cookie_header.strip()
+        if extra_headers:
+            self._headers.update({key.lower(): value for key, value in extra_headers.items()})
+
+    @classmethod
+    def from_env(cls, **kwargs: Any) -> TickertapeClient:
+        """Create a client using optional auth material from environment variables.
+
+        Supported variables:
+        - ``TICKERTAPE_AUTH_TOKEN``: bearer token from a legitimate logged-in session.
+        - ``TICKERTAPE_COOKIE``: raw Cookie header from a logged-in browser session.
+
+        Keyword arguments override normal constructor defaults. Explicit
+        ``auth_token=`` or ``cookie_header=`` values take precedence over env.
+        """
+
+        kwargs.setdefault("auth_token", os.getenv("TICKERTAPE_AUTH_TOKEN"))
+        kwargs.setdefault("cookie_header", os.getenv("TICKERTAPE_COOKIE"))
+        return cls(**kwargs)
 
     def close(self) -> None:
         """Close the underlying HTTP client."""

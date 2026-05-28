@@ -38,7 +38,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--limit", type=int, default=10)
 
     args = parser.parse_args(argv)
-    with TickertapeClient() as client:
+    with TickertapeClient.from_env() as client:
         if args.cmd == "market-status":
             _print(client.market_status(args.market))
         elif args.cmd == "quote":

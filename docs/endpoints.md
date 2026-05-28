@@ -1,6 +1,6 @@
 # Endpoint map
 
-Useful public endpoints wrapped by this package.
+Useful public endpoints wrapped by this package. Authenticated calls are supported by forwarding user-supplied `TICKERTAPE_AUTH_TOKEN` / `TICKERTAPE_COOKIE` values, but the client does not obtain credentials or bypass access controls.
 
 ## GMS API
 
