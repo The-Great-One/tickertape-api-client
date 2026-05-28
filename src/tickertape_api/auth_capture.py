@@ -122,7 +122,9 @@ def capture_credentials_interactively(
         ) from exc
 
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=headless)
+        browser = playwright.chromium.launch(
+            headless=headless, channel="chrome"
+        )
         context = browser.new_context()
         page = context.new_page()
         page.goto(login_url, wait_until="domcontentloaded")
@@ -175,87 +177,119 @@ def capture_credentials_via_otp(
         ) from exc
 
     if otp is None:
+        import sys as _sys
         otp = input("Enter the 6-digit OTP sent to your phone: ").strip()
+        if _sys.stdin.isatty():
+            # Only prompt if we're in an interactive terminal
+            pass
+        else:
+            raise RuntimeError(
+                "OTP required. Set --otp <code> or run in an interactive terminal."
+            ) from None
 
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=headless)
+        browser = playwright.chromium.launch(
+            headless=headless, channel="chrome"
+        )
         context = browser.new_context()
         page = context.new_page()
-        page.goto(TICKERTAPE_LOGIN_URL, wait_until="domcontentloaded")
 
-        # --- Step 1: Open the login modal ---
-        page.click('button:has-text("Sign Up")')
-        page.wait_for_selector('text=Enter your phone number', timeout=10_000)
-
-        # --- Step 2: Select country code if needed ---
-        cc_button = page.query_selector(".phone-input-wrapper [role=\"combobox\"], "
-                                        "div:has(> select) >> text=\\+91, "
-                                        "[class*=\"country\" i]")
-        if cc_button:
-            cc_button.click()
-            option = page.query_selector(f"text={country_code}")
-            if option:
-                option.click()
-            else:
-                # Fallback: try clicking the default dropdown and picking from options
-                page.wait_for_timeout(500)
-                page.evaluate(
-                    f"""
-                    () => {{
-                        const selects = document.querySelectorAll('select');
-                        for (const s of selects) {{
-                            if (s.textContent.includes('India')) {{
-                                s.value = '{country_code}';
-                                s.dispatchEvent(new Event('change', {{bubbles: true}}));
-                            }}
-                        }}
-                    }}
-                    """
-                )
-
-        # --- Step 3: Enter phone number ---
-        phone_input = page.query_selector(
-            'input[type="tel"], input[placeholder*="Phone"], '
-            "input:not([type=\"hidden\"]):below(:text(\"Enter your phone number\"))"
-        )
-        if phone_input:
-            phone_input.fill(phone)
-        else:
-            # Fallback: find any visible text input in the modal
-            page.fill(
-                "[role=\"dialog\"] input:not([type=\"hidden\"]), "
-                "text=Enter your phone number >> xpath=../..//input",
-                phone,
-            )
-
-        # --- Step 4: Click "Get OTP" ---
-        page.click('button:has-text("Get OTP")')
-        page.wait_for_timeout(2000)
-
-        # --- Step 5: Enter OTP ---
-        otp_input = page.query_selector(
-            'input[type="tel"], input[placeholder*="OTP"], '
-            'input[inputmode="numeric"][maxlength="6"]'
-        )
-        if otp_input:
-            otp_input.fill(otp)
-        else:
-            page.fill("[role=\"dialog\"] input:not([type=\"hidden\"])", otp)
-
-        # --- Step 6: Submit OTP ---
-        page.click('button:has-text("Verify"), button:has-text("Submit"), button:has-text("Login")')
+        # Navigate to the #login-init anchor which auto-opens the modal
+        page.goto("https://www.tickertape.in/#login-init", wait_until="domcontentloaded")
         page.wait_for_timeout(3000)
 
-        # If there's a "Continue" or "Proceed" button after OTP verification, click it
-        try:
-            page.click(
-                'button:has-text("Continue"), button:has-text("Proceed"), '
-                'button:has-text("Done")',
-                timeout=3000,
-            )
-            page.wait_for_timeout(2000)
-        except Exception:
-            pass  # No additional step needed
+        # --- Find and fill the phone input ---
+        # Tickertape uses input#phoneNumber (type=number); must use keystroke
+        # typing so React onChange fires and enables the "Get OTP" button.
+        phone_input = page.wait_for_selector(
+            '#phoneNumber, input[placeholder*="Phone"]',
+            timeout=15_000,
+        )
+        if phone_input is None or not phone_input.is_visible():
+            raise RuntimeError("Phone number input not found on login modal")
+        phone_input.click()
+        phone_input.fill("")  # clear any default
+        phone_input.type(phone, delay=80)
+
+        # Click "Get OTP" via JavaScript (modal-overlay blocks Playwright pointer)
+        page.wait_for_timeout(1000)
+        page.wait_for_selector(
+            'button:has-text("Get OTP"):not([disabled])',
+            timeout=10_000,
+        )
+        page.evaluate(
+            """() => {
+                const buttons = document.querySelectorAll('button');
+                for (const btn of buttons) {
+                    if (/get\\s*otp/i.test(btn.textContent || '')) {
+                        btn.click(); return;
+                    }
+                }
+            }"""
+        )
+        page.wait_for_timeout(3000)
+
+        # --- Step 4: Enter OTP ---
+        # Tickertape shows 6 individual digit inputs after requesting OTP.
+        # Use JS to find OTP fields and simulate typing so React onChange fires.
+        page.evaluate(
+            f"""() => {{
+                const inputs = document.querySelectorAll(
+                    'input[maxlength="1"], '
+                    + 'input[aria-label*="digit"], '
+                    + 'input[aria-label*="OTP"], '
+                    + 'input[placeholder*="0"], '
+                    + 'input.otp-input'
+                );
+                if (inputs.length >= 6) {{
+                    const digits = '{otp}';
+                    for (let i = 0; i < inputs.length && i < digits.length; i++) {{
+                        const nativeSetter = Object.getOwnPropertyDescriptor(
+                            window.HTMLInputElement.prototype, 'value'
+                        ).set;
+                        nativeSetter.call(inputs[i], digits[i]);
+                        inputs[i].dispatchEvent(new Event('input', {{bubbles: true}}));
+                        inputs[i].dispatchEvent(new Event('change', {{bubbles: true}}));
+                    }}
+                }} else {{
+                    // Single OTP input (fallback)
+                    const inp = document.querySelector(
+                        'input[placeholder*="OTP"], '
+                        + 'input[placeholder*="otp"], '
+                        + 'input[placeholder*="code"]'
+                    );
+                    if (inp) {{
+                        const nativeSetter = Object.getOwnPropertyDescriptor(
+                            window.HTMLInputElement.prototype, 'value'
+                        ).set;
+                        nativeSetter.call(inp, '{otp}');
+                        inp.dispatchEvent(new Event('input', {{bubbles: true}}));
+                        inp.dispatchEvent(new Event('change', {{bubbles: true}}));
+                    }}
+                }}
+            }}"""
+        )
+        page.wait_for_timeout(1000)
+
+        # Submit OTP via JavaScript (same modal-overlay issue)
+        page.wait_for_timeout(1000)
+        page.evaluate(
+            """
+            () => {
+                const buttons = document.querySelectorAll('button');
+                const labels = /verify|submit|login|continue|proceed|done/i;
+                for (const btn of buttons) {
+                    if (labels.test(btn.textContent || '')) {
+                        btn.click();
+                        return;
+                    }
+                }
+            }
+            """
+        )
+
+        # --- Step 6: Wait for login to complete (redirect to home) ---
+        page.wait_for_timeout(5000)
 
         # --- Step 7: Capture credentials ---
         storage = _read_page_storage(page)
