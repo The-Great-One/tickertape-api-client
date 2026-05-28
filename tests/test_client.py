@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import pytest
 import respx
@@ -131,6 +133,48 @@ def test_auth_token_and_cookie_header_are_sent_to_premium_endpoints():
 def test_from_env_reads_auth_token_and_cookie_header(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("TICKERTAPE_AUTH_TOKEN", "env-token")
     monkeypatch.setenv("TICKERTAPE_COOKIE", "sessionid=env-session")
+    with respx.mock(assert_all_called=True) as rsps:
+        route = rsps.get("https://api.tickertape.in/screener/filters").mock(
+            return_value=httpx.Response(200, json={"success": True, "data": {}})
+        )
+        TickertapeClient.from_env().screener_filters()
+        request = route.calls.last.request
+        assert request.headers["authorization"] == "Bearer env-token"
+        assert request.headers["cookie"] == "sessionid=env-session"
+
+
+def test_from_env_reads_persistent_credentials_file(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    credentials_file = tmp_path / "credentials.json"
+    credentials_file.write_text(
+        json.dumps({"auth_token": "file-token", "cookie_header": "sessionid=file-session"})
+    )
+    monkeypatch.delenv("TICKERTAPE_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("TICKERTAPE_COOKIE", raising=False)
+    monkeypatch.setenv("TICKERTAPE_CREDENTIALS_FILE", str(credentials_file))
+
+    with respx.mock(assert_all_called=True) as rsps:
+        route = rsps.get("https://api.tickertape.in/screener/filters").mock(
+            return_value=httpx.Response(200, json={"success": True, "data": {}})
+        )
+        TickertapeClient.from_env().screener_filters()
+        request = route.calls.last.request
+        assert request.headers["authorization"] == "Bearer file-token"
+        assert request.headers["cookie"] == "sessionid=file-session"
+
+
+def test_environment_credentials_override_persistent_file(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    credentials_file = tmp_path / "credentials.json"
+    credentials_file.write_text(
+        json.dumps({"auth_token": "file-token", "cookie_header": "sessionid=file-session"})
+    )
+    monkeypatch.setenv("TICKERTAPE_CREDENTIALS_FILE", str(credentials_file))
+    monkeypatch.setenv("TICKERTAPE_AUTH_TOKEN", "env-token")
+    monkeypatch.setenv("TICKERTAPE_COOKIE", "sessionid=env-session")
+
     with respx.mock(assert_all_called=True) as rsps:
         route = rsps.get("https://api.tickertape.in/screener/filters").mock(
             return_value=httpx.Response(200, json={"success": True, "data": {}})

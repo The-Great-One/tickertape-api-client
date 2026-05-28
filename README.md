@@ -207,7 +207,9 @@ tt.mutual_fund_screener({"match": {"option": ["Growth"]}, "sortBy": "aum", "sort
 
 Some screener queries may require auth server-side. The client exposes the endpoints but will raise clear `TickertapeHTTPError` / `TickertapeAPIError` if Tickertape rejects a request.
 
-Premium screener fields can be requested only with a legitimate logged-in Tickertape session that has access to them. The client does not log in, bypass access controls, or store credentials; it only forwards user-supplied auth material:
+The complete stock screener filter list is documented in [`docs/screener-filters.md`](docs/screener-filters.md), including category, `label`, display name, and premium/locked status.
+
+Premium screener fields can be requested only with a legitimate logged-in Tickertape session that has access to them. The client does not log in, bypass access controls, or store credentials unless you explicitly create a local credentials file; it only forwards user-supplied auth material:
 
 ```python
 from tickertape_api import TickertapeClient
@@ -221,6 +223,15 @@ client = TickertapeClient(
 # Option 2: read from env
 # export TICKERTAPE_AUTH_TOKEN='...'
 # export TICKERTAPE_COOKIE='...'
+client = TickertapeClient.from_env()
+
+# Option 3: persistent local credentials file
+# mkdir -p ~/.config/tickertape-api-client
+# chmod 700 ~/.config/tickertape-api-client
+# cat > ~/.config/tickertape-api-client/credentials.json <<'JSON'
+# {"auth_token": "...", "cookie_header": "..."}
+# JSON
+# chmod 600 ~/.config/tickertape-api-client/credentials.json
 client = TickertapeClient.from_env()
 
 client.screener_query({

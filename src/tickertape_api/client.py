@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any, Literal, cast
 
 import httpx
@@ -78,14 +79,53 @@ class TickertapeClient:
         Supported variables:
         - ``TICKERTAPE_AUTH_TOKEN``: bearer token from a legitimate logged-in session.
         - ``TICKERTAPE_COOKIE``: raw Cookie header from a logged-in browser session.
+        - ``TICKERTAPE_CREDENTIALS_FILE``: optional JSON file path. Defaults to
+          ``~/.config/tickertape-api-client/credentials.json`` when present.
 
-        Keyword arguments override normal constructor defaults. Explicit
-        ``auth_token=`` or ``cookie_header=`` values take precedence over env.
+        The credentials file may contain ``auth_token`` and ``cookie_header``
+        keys. Environment variables override file values. Keyword arguments
+        override both environment and file values.
         """
 
-        kwargs.setdefault("auth_token", os.getenv("TICKERTAPE_AUTH_TOKEN"))
-        kwargs.setdefault("cookie_header", os.getenv("TICKERTAPE_COOKIE"))
+        credentials = cls._read_credentials_file(os.getenv("TICKERTAPE_CREDENTIALS_FILE"))
+        kwargs.setdefault(
+            "auth_token", os.getenv("TICKERTAPE_AUTH_TOKEN") or credentials.get("auth_token")
+        )
+        kwargs.setdefault(
+            "cookie_header", os.getenv("TICKERTAPE_COOKIE") or credentials.get("cookie_header")
+        )
         return cls(**kwargs)
+
+    @staticmethod
+    def _read_credentials_file(path: str | None = None) -> dict[str, str]:
+        credentials_path = (
+            Path(path).expanduser()
+            if path
+            else Path.home() / ".config" / "tickertape-api-client" / "credentials.json"
+        )
+        if not credentials_path.exists():
+            return {}
+        try:
+            payload = json.loads(credentials_path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            raise TickertapeAPIError(
+                f"Could not read Tickertape credentials file: {credentials_path}", str(exc)
+            ) from exc
+        if not isinstance(payload, dict):
+            raise TickertapeAPIError(
+                f"Tickertape credentials file must contain a JSON object: {credentials_path}", payload
+            )
+        credentials: dict[str, str] = {}
+        for source_key, target_key in (
+            ("auth_token", "auth_token"),
+            ("token", "auth_token"),
+            ("cookie_header", "cookie_header"),
+            ("cookie", "cookie_header"),
+        ):
+            value = payload.get(source_key)
+            if isinstance(value, str) and value.strip() and target_key not in credentials:
+                credentials[target_key] = value.strip()
+        return credentials
 
     def close(self) -> None:
         """Close the underlying HTTP client."""

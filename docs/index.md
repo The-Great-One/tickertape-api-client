@@ -4,10 +4,15 @@
 
 See the repository README for complete examples and endpoint notes.
 
+Documentation pages:
+
+- [Endpoint map](endpoints.md)
+- [Stock screener filters](screener-filters.md)
+
 ## Install
 
 ```bash
-pip install tickertape-api-client
+pip install git+https://github.com/The-Great-One/tickertape-api-client.git
 ```
 
 ## Minimal example

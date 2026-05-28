@@ -4,3 +4,5 @@ theme:
   name: material
 nav:
   - Home: index.md
+  - Endpoint map: endpoints.md
+  - Stock screener filters: screener-filters.md

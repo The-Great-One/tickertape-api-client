@@ -1,6 +1,6 @@
 # Endpoint map
 
-Useful public endpoints wrapped by this package. Authenticated calls are supported by forwarding user-supplied `TICKERTAPE_AUTH_TOKEN` / `TICKERTAPE_COOKIE` values, but the client does not obtain credentials or bypass access controls.
+Useful public endpoints wrapped by this package. Authenticated calls are supported by forwarding user-supplied `TICKERTAPE_AUTH_TOKEN` / `TICKERTAPE_COOKIE` values, or by reading a local `~/.config/tickertape-api-client/credentials.json` file. The client does not obtain credentials or bypass access controls.
 
 ## GMS API
 
@@ -36,7 +36,7 @@ Useful public endpoints wrapped by this package. Authenticated calls are support
 - `GET /mmi/now`
 - `GET /screener/filters`
 - `GET /screener/prebuilt`
-- `POST /screener/query`
+- `POST /screener/query` — filter labels documented in [`screener-filters.md`](screener-filters.md)
 - `GET /mutualfunds/list`
 - `GET /mutualfunds/{mfId}/info`
 - `GET /mutualfunds/{mfId}/summary`
