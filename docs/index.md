@@ -26,6 +26,15 @@ with TickertapeClient() as tt:
     print(tt.mutual_fund_holdings("M_MAHD")["currentAllocation"][:10])
 ```
 
+## CLI-only auth setup
+
+```bash
+printf '%s' 'session_cookie_here' | tickertape auth-set --cookie-stdin
+tickertape auth-status
+```
+
+This stores manually provided token/cookie material in `~/.config/tickertape-api-client/credentials.json` for `TickertapeClient.from_env()`.
+
 ## Browser-assisted auth capture
 
 ```bash

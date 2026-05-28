@@ -52,7 +52,23 @@ tickertape mf-search "mahindra focused"
 tickertape mf-holdings M_MAHD
 ```
 
-For premium fields, use the browser-assisted session capture flow. This opens the real Tickertape site, lets you complete the normal login/CAPTCHA/2FA flow yourself, then saves only the resulting Tickertape cookies and visible auth token locally:
+For premium fields, use either a pure CLI credential setup or the browser-assisted session capture flow.
+
+Pure CLI setup, if you already copied a token/cookie from a logged-in Tickertape session:
+
+```bash
+# safer for shell history: paste cookie through stdin
+printf '%s' 'session_cookie_here' | tickertape auth-set --cookie-stdin
+
+# or pass explicitly
+# tickertape auth-set --token 'bearer_token_here' --cookie 'raw_cookie_header_here'
+
+tickertape auth-status
+```
+
+This writes `~/.config/tickertape-api-client/credentials.json` for `TickertapeClient.from_env()`.
+
+Browser-assisted capture opens the real Tickertape site, lets you complete the normal login/CAPTCHA/2FA flow yourself, then saves only the resulting Tickertape cookies and visible auth token locally:
 
 ```bash
 pip install "git+https://github.com/The-Great-One/tickertape-api-client.git#egg=tickertape-api-client[auth]"
@@ -250,7 +266,12 @@ client = TickertapeClient.from_env()
 # chmod 600 ~/.config/tickertape-api-client/credentials.json
 client = TickertapeClient.from_env()
 
-# Option 4: browser-assisted capture of your logged-in session
+# Option 4: CLI-only credential setup after manually copying session material
+# printf '%s' 'session_cookie_here' | tickertape auth-set --cookie-stdin
+# tickertape auth-status
+client = TickertapeClient.from_env()
+
+# Option 5: browser-assisted capture of your logged-in session
 # pip install "git+https://github.com/The-Great-One/tickertape-api-client.git#egg=tickertape-api-client[auth]"
 # python -m playwright install chromium
 # tickertape auth-capture

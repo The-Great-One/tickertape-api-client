@@ -2,9 +2,22 @@
 
 Useful public endpoints wrapped by this package. Authenticated calls are supported by forwarding user-supplied `TICKERTAPE_AUTH_TOKEN` / `TICKERTAPE_COOKIE` values, or by reading a local `~/.config/tickertape-api-client/credentials.json` file. The client does not obtain credentials or bypass access controls.
 
-## Auth capture
+## Auth setup
 
-For premium fields, install the optional Playwright extra and capture your own logged-in browser session:
+Pure CLI setup, when you already have a token/cookie copied from your own logged-in Tickertape session:
+
+```bash
+printf '%s' 'session_cookie_here' | tickertape auth-set --cookie-stdin
+tickertape auth-status
+```
+
+You can also pass values directly:
+
+```bash
+tickertape auth-set --token 'bearer_token_here' --cookie 'raw_cookie_header_here'
+```
+
+For premium fields, you can alternatively install the optional Playwright extra and capture your own logged-in browser session:
 
 ```bash
 pip install "git+https://github.com/The-Great-One/tickertape-api-client.git#egg=tickertape-api-client[auth]"

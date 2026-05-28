@@ -4,9 +4,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
+from pathlib import Path
 from typing import Any, cast
 
-from .auth_capture import DEFAULT_CREDENTIALS_PATH, capture_credentials_interactively
+from .auth_capture import (
+    DEFAULT_CREDENTIALS_PATH,
+    capture_credentials_interactively,
+    write_credentials_file,
+)
 from .client import TickertapeClient
 
 
@@ -45,10 +51,44 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", default=str(DEFAULT_CREDENTIALS_PATH), help="Credentials JSON path")
     p.add_argument("--headless", action="store_true", help="Run browser headlessly")
 
+    p = sub.add_parser(
+        "auth-set",
+        help="Save Tickertape auth token/cookie from CLI args or stdin without opening a browser",
+    )
+    p.add_argument("--token", help="Bearer token copied from a logged-in Tickertape session")
+    p.add_argument("--token-stdin", action="store_true", help="Read bearer token from stdin")
+    p.add_argument("--cookie", help="Raw Cookie header copied from a logged-in Tickertape session")
+    p.add_argument("--cookie-stdin", action="store_true", help="Read raw Cookie header from stdin")
+    p.add_argument("--out", default=str(DEFAULT_CREDENTIALS_PATH), help="Credentials JSON path")
+
+    p = sub.add_parser("auth-status", help="Show whether stored Tickertape credentials exist")
+    p.add_argument("--path", default=str(DEFAULT_CREDENTIALS_PATH), help="Credentials JSON path")
+
     args = parser.parse_args(argv)
     if args.cmd == "auth-capture":
         path = capture_credentials_interactively(output_path=args.out, headless=args.headless)
         print(f"Saved Tickertape credentials to {path}")
+        return 0
+    if args.cmd == "auth-set":
+        token = sys.stdin.read().strip() if args.token_stdin else args.token
+        cookie = sys.stdin.read().strip() if args.cookie_stdin else args.cookie
+        path = write_credentials_file(args.out, auth_token=token, cookie_header=cookie)
+        print(f"Saved Tickertape credentials to {path}")
+        return 0
+    if args.cmd == "auth-status":
+        path = Path(args.path).expanduser()
+        exists = path.exists()
+        print(f"path: {path}")
+        print(f"exists: {'yes' if exists else 'no'}")
+        if exists:
+            payload = json.loads(path.read_text())
+            if not isinstance(payload, dict):
+                raise TypeError("Credentials file must contain a JSON object")
+            print(f"auth_token: {'yes' if payload.get('auth_token') or payload.get('token') else 'no'}")
+            print(
+                "cookie_header: "
+                f"{'yes' if payload.get('cookie_header') or payload.get('cookie') else 'no'}"
+            )
         return 0
 
     with TickertapeClient.from_env() as client:
