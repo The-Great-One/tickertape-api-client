@@ -32,6 +32,8 @@ with TickertapeClient() as tt:
     print(tt.india_quotes(["RELI", ".NSEI"]))
     print(tt.us_latest_quotes(["IXIC", "AXP", "AAPL"]))
     print(tt.us_security_chart("AXP", duration="1y"))
+    print(tt.us_stock_overview("AAPL"))
+    print(tt.us_financials("AAPL", "income"))
     print(tt.mutual_fund_holdings("M_MAHD"))
 ```
 
@@ -110,14 +112,33 @@ tt.stock_financials("RELI", statement="income", period="annual", view="normal")
 ### US securities
 
 ```python
+tt.us_asset_info(["AAPL", "MSFT"])
+tt.us_asset_info(["VOO", "GLD"], asset_type="etfs")
+tt.us_stock_overview("AAPL")
+tt.us_etf_overview("VOO")
+tt.us_chart("AAPL", "1D")   # intraday, maps to duration=1d
+tt.us_chart("AAPL", "5Y")   # historical, maps to duration=5y
 tt.us_security_chart("AXP", duration="1y")
 tt.us_security_chart("AAPL", duration="5y")
+tt.us_financials("AAPL", "income")
+tt.us_financials("AAPL", "balancesheet")
+tt.us_financials("AAPL", "cashflow")
+tt.us_filters()
 ```
 
 Backed by:
 
 ```text
+GET https://gms-api.tickertape.in/US/securities/info?ticker=AAPL,MSFT
+GET https://gms-api.tickertape.in/US/etfs/info?ticker=VOO,GLD
+GET https://gms-api.tickertape.in/US/securities/AAPL/overview
+GET https://gms-api.tickertape.in/US/etfs/VOO/overview
+GET https://gms-api.tickertape.in/US/securities/AAPL/charts/intra?duration=1d
 GET https://gms-api.tickertape.in/US/securities/{ticker}/charts/inter?duration=1y
+GET https://gms-api.tickertape.in/US/securities/AAPL/financials/income?view=normal
+GET https://gms-api.tickertape.in/US/securities/AAPL/financials/balancesheet?view=normal
+GET https://gms-api.tickertape.in/US/securities/AAPL/financials/cashflow?view=normal
+GET https://gms-api.tickertape.in/US/filters
 ```
 
 Observed response fields:

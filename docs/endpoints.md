@@ -7,7 +7,16 @@ Useful public endpoints wrapped by this package.
 - `GET /market/{market}/status`
 - `GET /quotes/US/latest?tickers=IXIC,AXP`
 - `GET /quotes/FOREX/latest?tickers=USDINR`
+- `GET /US/securities/info?ticker=AAPL,MSFT`
+- `GET /US/etfs/info?ticker=VOO,GLD`
+- `GET /US/securities/{ticker}/overview`
+- `GET /US/etfs/{ticker}/overview`
+- `GET /US/securities/{ticker}/charts/intra?duration=1d`
 - `GET /US/securities/{ticker}/charts/inter?duration=1y`
+- `GET /US/securities/{ticker}/financials/income?view=normal`
+- `GET /US/securities/{ticker}/financials/balancesheet?view=normal`
+- `GET /US/securities/{ticker}/financials/cashflow?view=normal`
+- `GET /US/filters`
 
 ## Main API
 

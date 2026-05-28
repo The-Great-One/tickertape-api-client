@@ -233,10 +233,85 @@ class TickertapeClient:
 
     # ---- US securities -----------------------------------------------------
 
+    def us_asset_info(
+        self, tickers: Sequence[str] | str, *, asset_type: Literal["securities", "etfs"] = "securities"
+    ) -> JSON:
+        """Return bulk US asset metadata for stocks/securities or ETFs."""
+
+        return self._data(
+            "GET",
+            f"{self.gms_base}/US/{asset_type}/info",
+            params={"ticker": self._csv(tickers)},
+        )
+
+    def us_stock_overview(self, ticker: str) -> JSON:
+        """Return US stock overview: profile, metrics, labels, holdings and peers."""
+
+        return self._data("GET", f"{self.gms_base}/US/securities/{ticker}/overview")
+
+    def us_etf_overview(self, ticker: str) -> JSON:
+        """Return US ETF overview, including top holdings and peers when available."""
+
+        return self._data("GET", f"{self.gms_base}/US/etfs/{ticker}/overview")
+
+    def us_financials(
+        self,
+        ticker: str,
+        statement: Literal["income", "balancesheet", "cashflow"] = "income",
+        *,
+        view: str = "normal",
+    ) -> JSON:
+        """Return US stock financial statements.
+
+        Working statement values observed from the web app are ``income``,
+        ``balancesheet`` and ``cashflow``.
+        """
+
+        return self._data(
+            "GET",
+            f"{self.gms_base}/US/securities/{ticker}/financials/{statement}",
+            params={"view": view},
+        )
+
+    def us_filters(self) -> JSON:
+        """Return available US screener/filter metric definitions."""
+
+        return self._data("GET", f"{self.gms_base}/US/filters")
+
+    def us_chart(
+        self,
+        ticker: str,
+        range_: Literal["1D", "1W", "1M", "1Y", "5Y", "MAX"] = "1Y",
+        *,
+        asset_type: Literal["securities", "etfs"] = "securities",
+    ) -> JSON:
+        """Return a US stock/ETF chart using Tickertape's UI ranges.
+
+        ``1D`` maps to ``charts/intra?duration=1d``. Other ranges map to
+        ``charts/inter`` with lower-case durations: ``1w``, ``1m``, ``1y``,
+        ``5y`` and ``max``.
+        """
+
+        mapping = {
+            "1D": ("intra", "1d"),
+            "1W": ("inter", "1w"),
+            "1M": ("inter", "1m"),
+            "1Y": ("inter", "1y"),
+            "5Y": ("inter", "5y"),
+            "MAX": ("inter", "max"),
+        }
+        chart_type, duration = mapping[range_]
+        return self._data(
+            "GET",
+            f"{self.gms_base}/US/{asset_type}/{ticker}/charts/{chart_type}",
+            params={"duration": duration},
+        )
+
     def us_security_chart(self, ticker: str, duration: str = "1y") -> JSON:
         """Return US security historical chart data.
 
-        Observed durations include ``1m``, ``6m``, ``1y`` and likely ``5y``.
+        Prefer :meth:`us_chart` for UI-style ranges. This method is retained for
+        backwards compatibility and calls ``charts/inter`` directly.
         """
 
         return self._data(

@@ -24,6 +24,58 @@ def test_us_latest_quotes_supports_multiple_tickers():
         assert TickertapeClient().us_latest_quotes(["IXIC", "AXP"]) == {"IXIC": {"p": 1}}
 
 
+def test_us_asset_info_supports_stocks_and_etfs():
+    with respx.mock(assert_all_called=True) as rsps:
+        rsps.get("https://gms-api.tickertape.in/US/securities/info?ticker=AAPL%2CMSFT").mock(
+            return_value=httpx.Response(
+                200,
+                json={"success": True, "data": {"assets": [{"ticker": "AAPL"}]}},
+            )
+        )
+        rsps.get("https://gms-api.tickertape.in/US/etfs/info?ticker=VOO").mock(
+            return_value=httpx.Response(
+                200,
+                json={"success": True, "data": {"assets": [{"ticker": "VOO"}]}},
+            )
+        )
+
+        client = TickertapeClient()
+        assert client.us_asset_info(["AAPL", "MSFT"])["assets"][0]["ticker"] == "AAPL"
+        assert client.us_asset_info("VOO", asset_type="etfs")["assets"][0]["ticker"] == "VOO"
+
+
+def test_us_overview_financials_filters_and_chart_helpers():
+    with respx.mock(assert_all_called=True) as rsps:
+        rsps.get("https://gms-api.tickertape.in/US/securities/AAPL/overview").mock(
+            return_value=httpx.Response(200, json={"success": True, "data": {"ticker": "AAPL"}})
+        )
+        rsps.get("https://gms-api.tickertape.in/US/etfs/VOO/overview").mock(
+            return_value=httpx.Response(200, json={"success": True, "data": {"ticker": "VOO"}})
+        )
+        rsps.get(
+            "https://gms-api.tickertape.in/US/securities/AAPL/financials/income?view=normal"
+        ).mock(
+            return_value=httpx.Response(200, json={"success": True, "data": {"financials": {}}})
+        )
+        rsps.get("https://gms-api.tickertape.in/US/filters").mock(
+            return_value=httpx.Response(200, json={"success": True, "data": {"filters": []}})
+        )
+        rsps.get("https://gms-api.tickertape.in/US/securities/AAPL/charts/intra?duration=1d").mock(
+            return_value=httpx.Response(200, json={"success": True, "data": {"points": []}})
+        )
+        rsps.get("https://gms-api.tickertape.in/US/securities/AAPL/charts/inter?duration=5y").mock(
+            return_value=httpx.Response(200, json={"success": True, "data": {"points": []}})
+        )
+
+        client = TickertapeClient()
+        assert client.us_stock_overview("AAPL")["ticker"] == "AAPL"
+        assert client.us_etf_overview("VOO")["ticker"] == "VOO"
+        assert client.us_financials("AAPL", "income") == {"financials": {}}
+        assert client.us_filters() == {"filters": []}
+        assert client.us_chart("AAPL", "1D") == {"points": []}
+        assert client.us_chart("AAPL", "5Y") == {"points": []}
+
+
 def test_mutual_fund_holdings_returns_current_allocation():
     payload = {
         "success": True,
