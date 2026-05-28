@@ -2,6 +2,18 @@
 
 Useful public endpoints wrapped by this package. Authenticated calls are supported by forwarding user-supplied `TICKERTAPE_AUTH_TOKEN` / `TICKERTAPE_COOKIE` values, or by reading a local `~/.config/tickertape-api-client/credentials.json` file. The client does not obtain credentials or bypass access controls.
 
+## Auth capture
+
+For premium fields, install the optional Playwright extra and capture your own logged-in browser session:
+
+```bash
+pip install "git+https://github.com/The-Great-One/tickertape-api-client.git#egg=tickertape-api-client[auth]"
+python -m playwright install chromium
+tickertape auth-capture
+```
+
+This opens the real Tickertape website. You complete login/CAPTCHA/2FA manually, then press Enter in the terminal. The command saves Tickertape cookies and any visible auth token to `~/.config/tickertape-api-client/credentials.json` with `0600` permissions. It does not submit passwords, bypass login controls, or mirror private authentication APIs.
+
 ## GMS API
 
 - `GET /market/{market}/status`

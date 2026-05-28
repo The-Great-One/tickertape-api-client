@@ -6,6 +6,7 @@ import argparse
 import json
 from typing import Any, cast
 
+from .auth_capture import DEFAULT_CREDENTIALS_PATH, capture_credentials_interactively
 from .client import TickertapeClient
 
 
@@ -37,7 +38,19 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("text")
     p.add_argument("--limit", type=int, default=10)
 
+    p = sub.add_parser(
+        "auth-capture",
+        help="Open Tickertape in a browser and save logged-in session credentials",
+    )
+    p.add_argument("--out", default=str(DEFAULT_CREDENTIALS_PATH), help="Credentials JSON path")
+    p.add_argument("--headless", action="store_true", help="Run browser headlessly")
+
     args = parser.parse_args(argv)
+    if args.cmd == "auth-capture":
+        path = capture_credentials_interactively(output_path=args.out, headless=args.headless)
+        print(f"Saved Tickertape credentials to {path}")
+        return 0
+
     with TickertapeClient.from_env() as client:
         if args.cmd == "market-status":
             _print(client.market_status(args.market))

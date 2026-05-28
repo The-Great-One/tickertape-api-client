@@ -52,6 +52,22 @@ tickertape mf-search "mahindra focused"
 tickertape mf-holdings M_MAHD
 ```
 
+For premium fields, use the browser-assisted session capture flow. This opens the real Tickertape site, lets you complete the normal login/CAPTCHA/2FA flow yourself, then saves only the resulting Tickertape cookies and visible auth token locally:
+
+```bash
+pip install "git+https://github.com/The-Great-One/tickertape-api-client.git#egg=tickertape-api-client[auth]"
+python -m playwright install chromium
+tickertape auth-capture
+```
+
+Credentials are saved to:
+
+```text
+~/.config/tickertape-api-client/credentials.json
+```
+
+The command does **not** submit your password, bypass 2FA/CAPTCHA, or replicate private login APIs.
+
 ## Endpoint coverage
 
 ### Market status
@@ -209,7 +225,7 @@ Some screener queries may require auth server-side. The client exposes the endpo
 
 The complete stock screener filter list is documented in [`docs/screener-filters.md`](docs/screener-filters.md), including category, `label`, display name, and premium/locked status.
 
-Premium screener fields can be requested only with a legitimate logged-in Tickertape session that has access to them. The client does not log in, bypass access controls, or store credentials unless you explicitly create a local credentials file; it only forwards user-supplied auth material:
+Premium screener fields can be requested only with a legitimate logged-in Tickertape session that has access to them. The client does not log in, bypass access controls, or store credentials unless you explicitly create a local credentials file or run the browser-assisted `tickertape auth-capture` flow; it only forwards user-supplied auth material:
 
 ```python
 from tickertape_api import TickertapeClient
@@ -232,6 +248,12 @@ client = TickertapeClient.from_env()
 # {"auth_token": "...", "cookie_header": "..."}
 # JSON
 # chmod 600 ~/.config/tickertape-api-client/credentials.json
+client = TickertapeClient.from_env()
+
+# Option 4: browser-assisted capture of your logged-in session
+# pip install "git+https://github.com/The-Great-One/tickertape-api-client.git#egg=tickertape-api-client[auth]"
+# python -m playwright install chromium
+# tickertape auth-capture
 client = TickertapeClient.from_env()
 
 client.screener_query({

@@ -25,3 +25,13 @@ with TickertapeClient() as tt:
     print(tt.us_latest_quotes(["IXIC", "AXP"]))
     print(tt.mutual_fund_holdings("M_MAHD")["currentAllocation"][:10])
 ```
+
+## Browser-assisted auth capture
+
+```bash
+pip install "git+https://github.com/The-Great-One/tickertape-api-client.git#egg=tickertape-api-client[auth]"
+python -m playwright install chromium
+tickertape auth-capture
+```
+
+This opens the normal Tickertape website and waits for you to complete login manually. It then stores cookies/token in `~/.config/tickertape-api-client/credentials.json` for `TickertapeClient.from_env()`.
