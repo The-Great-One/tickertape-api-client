@@ -1,13 +1,13 @@
 # tickertape-api-client
 
-`tickertape-api-client` is a typed Python wrapper around useful public Tickertape web endpoints.
+`tickertape-api-client` is a typed Python wrapper around Tickertape's public web endpoints.
 
-See the repository README for complete examples and endpoint notes.
+It covers Indian equities, US stocks/indexes, market status, market mood, screeners, ETFs, indices, mutual funds, portfolio data, watchlists, and more — including real-time quotes via Socket.IO.
 
 Documentation pages:
 
-- [Endpoint map](endpoints.md)
-- [Stock screener filters](screener-filters.md)
+- [Complete Endpoint Map](endpoints.md) — all 227 discovered endpoints, organized by host and category, with auth requirements
+- [Stock Screener Filters](screener-filters.md) — every filter label for screener queries, with premium/locked status
 
 ## Install
 
@@ -33,7 +33,7 @@ printf '%s' 'session_cookie_here' | tickertape auth-set --cookie-stdin
 tickertape auth-status
 ```
 
-This stores manually provided token/cookie material in `~/.config/tickertape-api-client/credentials.json` for `TickertapeClient.from_env()`.
+Stores token/cookie in `~/.config/tickertape-api-client/credentials.json` for `TickertapeClient.from_env()`.
 
 ## Browser-assisted auth capture
 
@@ -43,4 +43,4 @@ python -m playwright install chromium
 tickertape auth-capture
 ```
 
-This opens the normal Tickertape website and waits for you to complete login manually. It then stores cookies/token in `~/.config/tickertape-api-client/credentials.json` for `TickertapeClient.from_env()`.
+Opens the normal Tickertape website, waits for you to complete login manually, then saves cookies/token locally.
