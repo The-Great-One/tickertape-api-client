@@ -42,6 +42,13 @@ class TickertapeClient:
     gms_base = "https://gms-api.tickertape.in"
     quotes_base = "https://quotes-api.tickertape.in"
     platform_base = "https://platform-ecosystem.api.tickertape.in"
+    auth_base = "https://auth.api.tickertape.in"
+    community_base = "https://community.api.tickertape.in"
+    channels_base = "https://channels.api.tickertape.in"
+    analyze_base = "https://analyze.api.tickertape.in"
+    gold_base = "https://gold.api.tickertape.in"
+    ecosystem_base = "https://ecosystem.api.tickertape.in"
+    payments_base = "https://payments.api.tickertape.in"
 
     def __init__(
         self,
@@ -415,10 +422,87 @@ class TickertapeClient:
     def screener_prebuilt(self) -> JSON:
         return self._data("GET", f"{self.api_base}/screener/prebuilt")
 
+    def screener_v2_prebuilt(self) -> JSON:
+        """Return v2 prebuilt screens (newer version used by the web app)."""
+        return self._data("GET", f"{self.api_base}/screener/v2/prebuilt")
+
     def screener_query(self, query: Mapping[str, Any]) -> JSON:
         """Run stock screener query. Some queries may require auth server-side."""
-
         return self._data("POST", f"{self.api_base}/screener/query", json_body=query)
+
+    def screener_export(self, query: Mapping[str, Any]) -> JSON:
+        """Export screener results. Requires auth."""
+        return self._data("POST", f"{self.api_base}/screener/export", json_body=query)
+
+    def screener_export_limit(self) -> JSON:
+        """Return screener export row limit for the current user."""
+        return self._data("GET", f"{self.api_base}/screener/exportLimit")
+
+    # Screener — custom filters / universes (auth-required)
+    def screener_custom_filters(self) -> JSON:
+        """List user's custom screener filters. Requires auth."""
+        return self._data("GET", f"{self.api_base}/screener/customFilters")
+
+    def screener_custom_filter(self, filter_id: str) -> JSON:
+        """Get a specific custom filter. Requires auth."""
+        return self._data("GET", f"{self.api_base}/screener/customFilters/{filter_id}")
+
+    def screener_custom_filter_bounds(self) -> JSON:
+        """Return bounds/range info for custom filters. Requires auth."""
+        return self._data("GET", f"{self.api_base}/screener/customFilters/bounds")
+
+    def screener_custom_universes(self) -> JSON:
+        """List user's custom universes. Requires auth."""
+        return self._data("GET", f"{self.api_base}/screener/customUniverses")
+
+    def screener_custom_universe(self, universe_id: str) -> JSON:
+        """Get a specific custom universe. Requires auth."""
+        return self._data("GET", f"{self.api_base}/screener/customUniverses/{universe_id}")
+
+    def screener_universes(self) -> JSON:
+        """Return available screener universes."""
+        return self._data("GET", f"{self.api_base}/screener/universes")
+
+    # Screener — saved screens (auth-required)
+    def screener_screens(self) -> JSON:
+        """List user's saved screener screens. Requires auth."""
+        return self._data("GET", f"{self.api_base}/screener/screens")
+
+    def screener_screen(self, screen_id: str) -> JSON:
+        """Get a specific saved screen. Requires auth."""
+        return self._data("GET", f"{self.api_base}/screener/screens/{screen_id}")
+
+    def screener_screen_load(self, screen_id: str) -> JSON:
+        """Load and execute a saved screen. Requires auth."""
+        return self._data("GET", f"{self.api_base}/screener/screens/load/{screen_id}")
+
+    def screener_load_default_screen(self) -> JSON:
+        """Load the default saved screen. Requires auth."""
+        return self._data("GET", f"{self.api_base}/screener/screens/load/default")
+
+    def screener_screen_metadata(self) -> JSON:
+        """Return metadata for saved screens. Requires auth."""
+        return self._data("GET", f"{self.api_base}/screener/screens/metadata")
+
+    def screener_user_screens(self, handle: str) -> JSON:
+        """Return screens shared by a specific user. Requires auth."""
+        return self._data("GET", f"{self.api_base}/screener/screens/user/{handle}")
+
+    def screener_all_equity_screens(self) -> JSON:
+        """Return all equity screens. Requires auth."""
+        return self._data("GET", f"{self.api_base}/screener/equity/allscreens")
+
+    def screener_home_equity(self) -> JSON:
+        """Return equity screener homepage data (top screens, popular filters)."""
+        return self._data("GET", f"{self.api_base}/screener/home/equity")
+
+    def screener_home_mutual_fund(self) -> JSON:
+        """Return MF screener homepage data."""
+        return self._data("GET", f"{self.api_base}/screener/home/mutual-fund")
+
+    def screener_external(self) -> JSON:
+        """Return external/embedded screener data."""
+        return self._data("GET", f"{self.api_base}/screener/external")
 
     # ---- mutual funds ------------------------------------------------------
 
@@ -473,10 +557,395 @@ class TickertapeClient:
     def mutual_fund_screener_prebuilt(self) -> JSON:
         return self._data("GET", f"{self.api_base}/mf-screener/prebuilt")
 
+    def mutual_fund_screener_v2_prebuilt(self) -> JSON:
+        """Return v2 prebuilt MF screens."""
+        return self._data("GET", f"{self.api_base}/mf-screener/v2/prebuilt")
+
     def mutual_fund_screener(self, query: Mapping[str, Any]) -> JSON:
         """Run mutual-fund screener query. Some queries may require auth server-side."""
-
         return self._data("POST", f"{self.api_base}/mf-screener/query", json_body=query)
+
+    def mutual_fund_screener_export(self, query: Mapping[str, Any]) -> JSON:
+        """Export MF screener results. Requires auth."""
+        return self._data("POST", f"{self.api_base}/mf-screener/export", json_body=query)
+
+    def mutual_fund_screener_export_limit(self) -> JSON:
+        """Return MF screener export row limit."""
+        return self._data("GET", f"{self.api_base}/mf-screener/exportLimit")
+
+    # MF Screener — custom filters / universes (auth-required)
+    def mf_screener_custom_filters(self) -> JSON:
+        return self._data("GET", f"{self.api_base}/mf-screener/customFilters")
+
+    def mf_screener_custom_filter(self, filter_id: str) -> JSON:
+        return self._data("GET", f"{self.api_base}/mf-screener/customFilters/{filter_id}")
+
+    def mf_screener_custom_filter_bounds(self) -> JSON:
+        return self._data("GET", f"{self.api_base}/mf-screener/customFilters/bounds")
+
+    def mf_screener_custom_universes(self) -> JSON:
+        return self._data("GET", f"{self.api_base}/mf-screener/customUniverses")
+
+    def mf_screener_custom_universe(self, universe_id: str) -> JSON:
+        return self._data("GET", f"{self.api_base}/mf-screener/customUniverses/{universe_id}")
+
+    def mf_screener_universes(self) -> JSON:
+        return self._data("GET", f"{self.api_base}/mf-screener/universes")
+
+    # MF Screener — saved screens (auth-required)
+    def mf_screener_screens(self) -> JSON:
+        return self._data("GET", f"{self.api_base}/mf-screener/screens")
+
+    def mf_screener_screen(self, screen_id: str) -> JSON:
+        return self._data("GET", f"{self.api_base}/mf-screener/screens/{screen_id}")
+
+    def mf_screener_screen_load(self, screen_id: str) -> JSON:
+        return self._data("GET", f"{self.api_base}/mf-screener/screens/load/{screen_id}")
+
+    def mf_screener_load_default_screen(self) -> JSON:
+        return self._data("GET", f"{self.api_base}/mf-screener/screens/load/default")
+
+    def mf_screener_screen_metadata(self) -> JSON:
+        return self._data("GET", f"{self.api_base}/mf-screener/screens/metadata")
+
+    def mf_screener_user_screens(self, handle: str) -> JSON:
+        return self._data("GET", f"{self.api_base}/mf-screener/screens/user/{handle}")
+
+    def mf_screener_all_screens(self) -> JSON:
+        """Return all MF screens."""
+        return self._data("GET", f"{self.api_base}/screener/mutual-fund/allscreens")
+
+    # ---- portfolio (auth-required) ----------------------------------------
+
+    def portfolio_equity(self) -> JSON:
+        """Return equity portfolio data. Requires auth."""
+        return self._data("GET", f"{self.api_base}/portfolio/equity")
+
+    def portfolio_mutual_funds(self) -> JSON:
+        """Return MF portfolio data. Requires auth."""
+        return self._data("GET", f"{self.api_base}/portfolio/mutualfunds")
+
+    def portfolio_mf_contribution(self) -> JSON:
+        """Return MF portfolio contribution data. Requires auth."""
+        return self._data("GET", f"{self.api_base}/portfolio/mutualfunds/contribution")
+
+    def portfolio_us_stocks(self) -> JSON:
+        """Return US stocks portfolio data. Requires auth."""
+        return self._data("GET", f"{self.api_base}/portfolio/us-stocks")
+
+    def portfolio_us_contribution(self) -> JSON:
+        """Return US stocks contribution data. Requires auth."""
+        return self._data("GET", f"{self.api_base}/portfolio/useq/contribution")
+
+    def portfolio_metrics(self) -> JSON:
+        """Return portfolio metrics. Requires auth."""
+        return self._data("GET", f"{self.api_base}/portfolio/metrics")
+
+    def portfolio_scores(self) -> JSON:
+        """Return portfolio scores. Requires auth."""
+        return self._data("GET", f"{self.api_base}/portfolio/scores")
+
+    def portfolio_scores_v2(self, portfolio_id: str) -> JSON:
+        """Return portfolio v2 scores for a specific portfolio. Requires auth."""
+        return self._data("GET", f"{self.api_base}/portfolio/v2/scores/{portfolio_id}")
+
+    def portfolio_diversification_score(self) -> JSON:
+        """Return portfolio diversification score. Requires auth."""
+        return self._data("GET", f"{self.api_base}/portfolio/insights/diversificationScore")
+
+    def portfolio_forecast(self) -> JSON:
+        """Return portfolio forecast. Requires auth."""
+        return self._data("GET", f"{self.api_base}/portfolio/insights/forecast")
+
+    def portfolio_redflags(self) -> JSON:
+        """Return portfolio red flags. Requires auth."""
+        return self._data("GET", f"{self.api_base}/portfolio/redflags")
+
+    def portfolio_holdings_status(self) -> JSON:
+        """Return holdings import status. Requires auth."""
+        return self._data("GET", f"{self.api_base}/portfolio/holdings/status")
+
+    def portfolio_holdings_v2(self, portfolio_id: str) -> JSON:
+        """Return v2 holdings for a specific portfolio. Requires auth."""
+        return self._data("GET", f"{self.api_base}/portfolio/v2/holdings/{portfolio_id}")
+
+    def portfolio_holdings_v2_status(self) -> JSON:
+        """Return v2 holdings status. Requires auth."""
+        return self._data("GET", f"{self.api_base}/portfolio/v2/holdings/status")
+
+    def portfolio_holdings_v3_status(self) -> JSON:
+        """Return v3 holdings status. Requires auth."""
+        return self._data("GET", f"{self.api_base}/portfolio/v3/holdings/status")
+
+    def portfolio_mf_holdings_init(self) -> JSON:
+        """Return MF holdings gateway init. Requires auth."""
+        return self._data("GET", f"{self.api_base}/portfolio/holdings/gateway/mutualFunds/init")
+
+    def portfolio_brokers_config(self) -> JSON:
+        """Return broker config widget for portfolio. Requires auth."""
+        return self._data("GET", f"{self.api_base}/portfolio/widget/brokers/config")
+
+    def homepage_portfolio(self) -> JSON:
+        """Return homepage portfolio data. Requires auth."""
+        return self._data("GET", f"{self.api_base}/homepage/portfolio")
+
+    def homepage_portfolio_v2(self) -> JSON:
+        """Return v2 homepage portfolio data. Requires auth."""
+        return self._data("GET", f"{self.api_base}/homepage/portfolio/v2")
+
+    # ---- market movers & homepage -----------------------------------------
+
+    def home_indices(self) -> JSON:
+        """Return homepage indices widget data."""
+        return self._data("GET", f"{self.api_base}/homepage/indices")
+
+    def home_stocks(self) -> JSON:
+        """Return homepage stocks widget data."""
+        return self._data("GET", f"{self.api_base}/homepage/stocks")
+
+    def home_events(self) -> JSON:
+        """Return homepage events widget data."""
+        return self._data("GET", f"{self.api_base}/homepage/events")
+
+    def home_events_v2(self) -> JSON:
+        """Return v2 homepage events widget data."""
+        return self._data("GET", f"{self.api_base}/v2/homepage/events")
+
+    def home_mmi(self) -> JSON:
+        """Return homepage MMI widget data."""
+        return self._data("GET", f"{self.api_base}/homepage/mmi")
+
+    def market_movers_deals(self) -> JSON:
+        """Return market movers deals data."""
+        return self._data("GET", f"{self.api_base}/market-movers/deals")
+
+    def market_movers_insights(self, insight_type: str) -> JSON:
+        """Return market movers insights for a given type. Requires auth."""
+        return self._data("GET", f"{self.api_base}/market-movers/insights/{insight_type}")
+
+    # ---- stock feed v2 ----------------------------------------------------
+
+    def stock_feed(self, sid: str) -> JSON:
+        """Return stock feed (v1)."""
+        return self._data("GET", f"{self.api_base}/stocks/feed/{sid}")
+
+    def stock_feed_v2(self, sid: str) -> JSON:
+        """Return stock feed v2 (richer data than v1)."""
+        return self._data("GET", f"{self.api_base}/v2/stocks/feed/{sid}")
+
+    def stock_summary_v2(self, sid: str) -> JSON:
+        """Return stock summary v2."""
+        return self._data("GET", f"{self.api_base}/v2/stocks/summary/{sid}")
+
+    # ---- watchlists (auth-required) ---------------------------------------
+
+    def watchlists(self) -> JSON:
+        """List user's watchlists. Requires auth."""
+        return self._data("GET", f"{self.api_base}/watchlists")
+
+    def watchlist(self, watchlist_id: str) -> JSON:
+        """Get a specific watchlist. Requires auth."""
+        return self._data("GET", f"{self.api_base}/watchlists/{watchlist_id}")
+
+    def watchlist_constituents(self, watchlist_id: str) -> JSON:
+        """Get watchlist constituents. Requires auth."""
+        return self._data("GET", f"{self.api_base}/watchlists/{watchlist_id}/constituents")
+
+    def watchlist_add_to_basket(self, watchlist_id: str) -> JSON:
+        """Add watchlist items to basket. Requires auth."""
+        return self._data("POST", f"{self.api_base}/watchlists/{watchlist_id}/addToBasket")
+
+    def watchlists_data(self) -> JSON:
+        """Return watchlist aggregated data. Requires auth."""
+        return self._data("GET", f"{self.api_base}/watchlists/data")
+
+    def watchlists_tabs(self) -> JSON:
+        """Return watchlist tabs/config. Requires auth."""
+        return self._data("GET", f"{self.api_base}/watchlists/tabs")
+
+    def watchlists_tab(self, tab_key: str) -> JSON:
+        """Return a specific watchlist tab. Requires auth."""
+        return self._data("GET", f"{self.api_base}/watchlists/tabs/{tab_key}")
+
+    # ---- user / holdings (auth-required) ---------------------------------
+
+    def user_profile(self) -> JSON:
+        """Return user profile. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/profile")
+
+    def user_status(self) -> JSON:
+        """Return user status (subscription tier, features). Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/status")
+
+    def user_subscription(self) -> JSON:
+        """Return user subscription details. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/subscription")
+
+    def user_holdings(self) -> JSON:
+        """Return user stock holdings. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/holdings")
+
+    def user_holding(self, sid: str) -> JSON:
+        """Return holding for a specific stock. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/holdings/{sid}")
+
+    def user_mf_holdings(self) -> JSON:
+        """Return user MF holdings. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/mfholdings")
+
+    def user_mf_diversification_score(self) -> JSON:
+        """Return MF diversification score for user. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/mfHoldings/insights/diversificationScore")
+
+    def user_holdings_report(self) -> JSON:
+        """Return holdings report. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/holdings/report")
+
+    def user_mf_holdings_report(self) -> JSON:
+        """Return MF holdings report. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/mfholdings/report")
+
+    def user_holdings_commentary(self) -> JSON:
+        """Return holdings commentary. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/holdings/commentary")
+
+    def user_mf_holdings_commentary(self) -> JSON:
+        """Return MF holdings commentary. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/mfholdings/commentary")
+
+    def user_holdings_contribution(self) -> JSON:
+        """Return holdings contribution analysis. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/holdings/contribution")
+
+    def user_basket(self) -> JSON:
+        """Return user basket. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/basket")
+
+    def user_basket_securities(self, sid: str) -> JSON:
+        """Return basket for a specific security. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/basket/securities/{sid}")
+
+    def user_flags(self) -> JSON:
+        """Return user feature flags. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/flags")
+
+    def user_config(self) -> JSON:
+        """Return user config. Requires auth."""
+        return self._data("GET", f"{self.api_base}/users/config")
+
+    def user_search_history(self) -> JSON:
+        """Return user search history. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/searchHistory")
+
+    def user_dismissed(self) -> JSON:
+        """Return user dismissed items/settings. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/dismissed")
+
+    def user_credit_summary(self) -> JSON:
+        """Return user credit summary. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/credit/summary")
+
+    def user_credit_combined_v3(self) -> JSON:
+        """Return v3 combined credit data. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/credit/combined/v3")
+
+    def user_key_ratios(self) -> JSON:
+        """Return user key ratios. Requires auth."""
+        return self._data("GET", f"{self.api_base}/user/keyRatios")
+
+    # ---- auth / gateway (auth-required) ----------------------------------
+
+    def auth_user_v2(self) -> JSON:
+        """Return authenticated user data v2. Requires auth."""
+        return self._data("GET", f"{self.auth_base}/auth/user/v2")
+
+    def auth_extend_session(self) -> JSON:
+        """Extend user session. Requires auth."""
+        return self._data("POST", f"{self.auth_base}/auth/extendSession")
+
+    def gateway_holdings_init(self) -> JSON:
+        """Initialize gateway holdings connection. Requires auth."""
+        return self._data("POST", f"{self.api_base}/gateway/holdings/init")
+
+    def gateway_holdings_init_id(self, gw_id: str) -> JSON:
+        """Initialize gateway holdings for a specific ID. Requires auth."""
+        return self._data("POST", f"{self.api_base}/gateway/holdings/init/{gw_id}")
+
+    def gateway_connect_init(self) -> JSON:
+        """Initialize gateway broker connection. Requires auth."""
+        return self._data("POST", f"{self.api_base}/gateway/connect/init")
+
+    def gateway_token(self) -> JSON:
+        """Get gateway token. Requires auth."""
+        return self._data("GET", f"{self.api_base}/gateway/token")
+
+    def gateway_token_id(self, gw_id: str) -> JSON:
+        """Get gateway token for a specific ID. Requires auth."""
+        return self._data("GET", f"{self.api_base}/gateway/token/{gw_id}")
+
+    # ---- trading (auth-required) -----------------------------------------
+
+    def trades(self) -> JSON:
+        """List trades. Requires auth."""
+        return self._data("GET", f"{self.api_base}/api/v1/trades")
+
+    def trade(self, trade_id: str) -> JSON:
+        """Get a specific trade. Requires auth."""
+        return self._data("GET", f"{self.api_base}/api/v1/trades/{trade_id}")
+
+    def trade_cancel(self, trade_id: str) -> JSON:
+        """Cancel a trade. Requires auth."""
+        return self._data("POST", f"{self.api_base}/api/v1/trades/{trade_id}/cancel")
+
+    def trade_preview(self, order: Mapping[str, Any]) -> JSON:
+        """Preview a trade/order. Requires auth."""
+        return self._data("POST", f"{self.api_base}/api/v1/trades/preview", json_body=order)
+
+    def trade_config(self) -> JSON:
+        """Return trading config. Requires auth."""
+        return self._data("GET", f"{self.api_base}/api/v1/trades/config")
+
+    def remittances(self) -> JSON:
+        """List remittances. Requires auth."""
+        return self._data("GET", f"{self.api_base}/api/v1/remittances")
+
+    def broker_application_status(self) -> JSON:
+        """Return broker application status. Requires auth."""
+        return self._data("GET", f"{self.api_base}/api/v1/broker/application/status")
+
+    # ---- social / community (auth-required) ------------------------------
+
+    def feeds_v3(self) -> JSON:
+        """Return v3 community feed. Requires auth."""
+        return self._data("GET", f"{self.community_base}/v3/feeds")
+
+    def posts_v2(self) -> JSON:
+        """List community posts v2. Requires auth."""
+        return self._data("GET", f"{self.community_base}/v2/posts")
+
+    def posts_v3(self) -> JSON:
+        """List community posts v3. Requires auth."""
+        return self._data("GET", f"{self.community_base}/v3/posts")
+
+    def post_v3(self, post_id: str) -> JSON:
+        """Get a specific community post v3. Requires auth."""
+        return self._data("GET", f"{self.community_base}/v3/posts/{post_id}")
+
+    def comments_v2(self) -> JSON:
+        """List comments v2. Requires auth."""
+        return self._data("GET", f"{self.community_base}/v2/comments")
+
+    def comment_v2(self, comment_id: str) -> JSON:
+        """Get a specific comment v2. Requires auth."""
+        return self._data("GET", f"{self.community_base}/v2/comments/{comment_id}")
+
+    def polls_v2(self) -> JSON:
+        """List polls v2. Requires auth."""
+        return self._data("GET", f"{self.community_base}/v2/polls")
+
+    def poll_v2(self, poll_id: str) -> JSON:
+        """Get a specific poll v2. Requires auth."""
+        return self._data("GET", f"{self.community_base}/v2/polls/{poll_id}")
 
     # ---- smallcase/platform -----------------------------------------------
 

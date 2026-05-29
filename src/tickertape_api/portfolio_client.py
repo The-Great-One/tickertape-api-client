@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from .exceptions import TickertapeAPIError, TickertapeHTTPError
 
@@ -46,7 +46,7 @@ class PortfolioClient:
         *,
         cookie_dict: dict[str, str] | None = None,
         csrf_token: str | None = None,
-        credentials_file: str | os.PathLike | None = None,
+        credentials_file: str | os.PathLike[str] | None = None,
         impersonate: str = "chrome124",
         timeout: float = 15.0,
     ) -> None:
@@ -85,7 +85,7 @@ class PortfolioClient:
 
     @staticmethod
     def _read_credentials_file(
-        path: str | os.PathLike | None = None,
+        path: str | os.PathLike[str] | None = None,
     ) -> dict[str, Any]:
         credentials_path = (
             Path(path).expanduser()
@@ -145,9 +145,11 @@ class PortfolioClient:
             h.update({k.lower(): v for k, v in extra.items()})
         return h
 
+    _Method = Literal["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "TRACE", "PATCH", "QUERY"]
+
     def _request(
         self,
-        method: str,
+        method: _Method,
         url: str,
         *,
         params: dict[str, Any] | None = None,
@@ -167,7 +169,7 @@ class PortfolioClient:
                 json=json_body,
                 cookies=self.cookie_dict,
                 headers=hdrs,
-                impersonate=self.impersonate,
+                impersonate=self.impersonate,  # type: ignore[arg-type]
                 timeout=self.timeout,
             )
         except Exception as exc:
@@ -175,7 +177,7 @@ class PortfolioClient:
 
         # Parse JSON
         try:
-            data = r.json()
+            data = r.json()  # type: ignore[no-untyped-call]
         except json.JSONDecodeError as err:
             raise TickertapeAPIError(
                 f"Tickertape returned non-JSON response ({r.status_code})",
@@ -183,7 +185,7 @@ class PortfolioClient:
             ) from err
 
         if not r.ok:
-            msg = data.get("error") or data.get("message") or r.reason_phrase or "Unknown error"
+            msg = data.get("error") or data.get("message") or r.reason or "Unknown error"
             raise TickertapeHTTPError(r.status_code, msg, data)
 
         return data
@@ -216,19 +218,34 @@ class PortfolioClient:
         return self._get_data(f"{self.api_base}/user/mfholdings")
 
     # ------------------------------------------------------------------
-    # Portfolio v2
+    # Portfolio v3 (includes US stocks)
     # ------------------------------------------------------------------
 
     def holdings_status(self) -> Any:
-        """Return portfolio holdings status from ecosystem API.
+        """Return portfolio holdings status from ecosystem API (v3).
 
-        Returns the ``/portfolio/v2/holdings/status`` payload. Contains current
-        investment amounts, P&L, and portfolio health indicators.
+        Returns the ``/portfolio/v3/holdings/status`` payload. Includes
+        ``STOCK`` (Indian equities via linked gateway), ``MUTUALFUND``, and
+        ``US_STOCK`` (Tickertape native US trading) positions with current
+        holdings, P&L, and portfolio health indicators.
         """
         return self._get_data(
-            f"{self.ecosystem_base}/portfolio/v2/holdings/status",
+            f"{self.ecosystem_base}/portfolio/v3/holdings/status",
             referer="https://www.tickertape.in/portfolio/mutualfunds",
         )
+
+    def us_holdings(self) -> Any:
+        """Return US stock holdings only.
+
+        Convenience wrapper that calls :meth:`holdings_status` and extracts
+        the ``US_STOCK`` asset status entry. Returns ``None`` if no US stocks
+        are held.
+        """
+        status = self.holdings_status()
+        for asset in status.get("assetsStatus", []):
+            if asset.get("type") == "US_STOCK":
+                return asset
+        return None
 
     # ------------------------------------------------------------------
     # Watchlists
