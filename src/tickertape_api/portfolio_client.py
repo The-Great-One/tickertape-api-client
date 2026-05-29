@@ -176,11 +176,11 @@ class PortfolioClient:
         # Parse JSON
         try:
             data = r.json()
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as err:
             raise TickertapeAPIError(
                 f"Tickertape returned non-JSON response ({r.status_code})",
                 r.text[:500],
-            )
+            ) from err
 
         if not r.ok:
             msg = data.get("error") or data.get("message") or r.reason_phrase or "Unknown error"

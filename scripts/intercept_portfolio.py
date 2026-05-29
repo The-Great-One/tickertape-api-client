@@ -1,6 +1,7 @@
 """Capture full API response bodies via response interception, save to file."""
 import json
 from pathlib import Path
+
 from cloakbrowser import launch
 
 creds = json.loads(
@@ -44,7 +45,7 @@ def handle_response(response):
                 captured[key] = body
                 captured_urls[key] = url
                 print(f"✓ {response.status} {key} ({len(body)} bytes)")
-            except:
+            except Exception:
                 pass
 
 page.on('response', handle_response)
@@ -60,7 +61,7 @@ output = {}
 for key, body in captured.items():
     try:
         output[key] = json.loads(body)
-    except:
+    except Exception:
         output[key] = {"_raw": body[:500]}
 
 out_path = Path.home() / ".hermes" / "tickertape_portfolio_data.json"

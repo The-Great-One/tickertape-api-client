@@ -1,6 +1,7 @@
 """Test: cookie-only auth with exact headers matching browser XHR."""
 import json
 from pathlib import Path
+
 from curl_cffi import requests as curl_requests
 
 creds_path = Path.home() / ".config" / "tickertape-api-client" / "credentials.json"
