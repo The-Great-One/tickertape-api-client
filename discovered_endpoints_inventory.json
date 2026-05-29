@@ -1,0 +1,766 @@
+{
+  "data_apis": {
+    "description": "Core data APIs — screener, stocks, mutual funds, quotes, market data",
+    "hosts": {
+      "quotes-api.tickertape.in": "Real-time quotes and tick data",
+      "api.tickertape.in": "Primary REST API gateway"
+    },
+    "endpoints": [
+      {
+        "path": "/api/"
+      },
+      {
+        "path": "/holdings/scConnectTokenUrl"
+      },
+      {
+        "path": "/holdings/scConnectTokenUrl/v2"
+      },
+      {
+        "path": "/market/:market/status"
+      },
+      {
+        "path": "/stocks/feed/:sid"
+      },
+      {
+        "path": "/stocks/summary/:sid"
+      },
+      {
+        "path": "/v2/stocks/feed/:sid"
+      },
+      {
+        "path": "/v2/stocks/summary/:sid"
+      },
+      {
+        "path": "https://tickertape-d9bd1.firebaseio.com"
+      }
+    ]
+  },
+  "screener_apis": {
+    "description": "Screener — equity and mutual fund screening, filters, screens",
+    "endpoints": [
+      {
+        "path": "/screener"
+      },
+      {
+        "path": "/screener-blogs"
+      },
+      {
+        "path": "/screener-canonical-url-mappings"
+      },
+      {
+        "path": "/screener/[[...path]]"
+      },
+      {
+        "path": "/screener/customFilters"
+      },
+      {
+        "path": "/screener/customFilters/:id"
+      },
+      {
+        "path": "/screener/customFilters/bounds"
+      },
+      {
+        "path": "/screener/customUniverses"
+      },
+      {
+        "path": "/screener/customUniverses/:id"
+      },
+      {
+        "path": "/screener/equity/allscreens"
+      },
+      {
+        "path": "/screener/export"
+      },
+      {
+        "path": "/screener/exportLimit"
+      },
+      {
+        "path": "/screener/external"
+      },
+      {
+        "path": "/screener/filters"
+      },
+      {
+        "path": "/screener/home/equity"
+      },
+      {
+        "path": "/screener/home/mutual-fund"
+      },
+      {
+        "path": "/screener/mutual-fund/allscreens"
+      },
+      {
+        "path": "/screener/prebuilt"
+      },
+      {
+        "path": "/screener/query"
+      },
+      {
+        "path": "/screener/screens"
+      },
+      {
+        "path": "/screener/screens/:id"
+      },
+      {
+        "path": "/screener/screens/load/:screenId"
+      },
+      {
+        "path": "/screener/screens/load/default"
+      },
+      {
+        "path": "/screener/screens/metadata"
+      },
+      {
+        "path": "/screener/screens/user/:handle"
+      },
+      {
+        "path": "/screener/universes"
+      },
+      {
+        "path": "/screener/v2/prebuilt"
+      },
+      {
+        "path": "/screener/widget/mutual-fund"
+      },
+      {
+        "path": "https://www.tickertape.in/screener/home/equity"
+      },
+      {
+        "path": "https://www.tickertape.in/screener/home/mutual-fund"
+      }
+    ]
+  },
+  "portfolio_apis": {
+    "description": "Portfolio — holdings, scores, insights, metrics, redflags",
+    "endpoints": [
+      {
+        "path": "/api/v1/users/portfolio"
+      },
+      {
+        "path": "/homepage/portfolio"
+      },
+      {
+        "path": "/homepage/portfolio/v2"
+      },
+      {
+        "path": "/portfolio"
+      },
+      {
+        "path": "/portfolio/[[...path]]"
+      },
+      {
+        "path": "/portfolio/equity"
+      },
+      {
+        "path": "/portfolio/holdings/gateway/mutualFunds/init"
+      },
+      {
+        "path": "/portfolio/holdings/status"
+      },
+      {
+        "path": "/portfolio/insights/diversificationScore"
+      },
+      {
+        "path": "/portfolio/insights/forecast"
+      },
+      {
+        "path": "/portfolio/metrics"
+      },
+      {
+        "path": "/portfolio/mutualfunds"
+      },
+      {
+        "path": "/portfolio/mutualfunds/contribution"
+      },
+      {
+        "path": "/portfolio/redflags"
+      },
+      {
+        "path": "/portfolio/scores"
+      },
+      {
+        "path": "/portfolio/us-stocks"
+      },
+      {
+        "path": "/portfolio/useq"
+      },
+      {
+        "path": "/portfolio/useq/contribution"
+      },
+      {
+        "path": "/portfolio/v2/holdings/:id"
+      },
+      {
+        "path": "/portfolio/v2/holdings/status"
+      },
+      {
+        "path": "/portfolio/v2/scores/:id"
+      },
+      {
+        "path": "/portfolio/v3/holdings/status"
+      },
+      {
+        "path": "/portfolio/widget/brokers/config"
+      },
+      {
+        "path": "https://www.tickertape.in/portfolio/digital-gold"
+      },
+      {
+        "path": "https://www.tickertape.in/portfolio/equity"
+      },
+      {
+        "path": "https://www.tickertape.in/portfolio/mutualfunds"
+      },
+      {
+        "path": "https://www.tickertape.in/portfolio/us-stocks"
+      }
+    ]
+  },
+  "auth_apis": {
+    "description": "Authentication — login, OTP, brokers, social, sessions",
+    "endpoints": [
+      {
+        "path": "/auth/connectBroker"
+      },
+      {
+        "path": "/auth/connectBroker/v2"
+      },
+      {
+        "path": "/auth/connectSocial"
+      },
+      {
+        "path": "/auth/disconnectBroker"
+      },
+      {
+        "path": "/auth/disconnectBroker/v2/:id"
+      },
+      {
+        "path": "/auth/disconnectSecondaryBrokers"
+      },
+      {
+        "path": "/auth/disconnectSocial"
+      },
+      {
+        "path": "/auth/email/sendOTP"
+      },
+      {
+        "path": "/auth/email/sendOTP/V3"
+      },
+      {
+        "path": "/auth/email/social"
+      },
+      {
+        "path": "/auth/email/tokenLogin"
+      },
+      {
+        "path": "/auth/email/verifyOTP"
+      },
+      {
+        "path": "/auth/email/verifyOTP/V3"
+      },
+      {
+        "path": "/auth/emailLogin"
+      },
+      {
+        "path": "/auth/emailStatus"
+      },
+      {
+        "path": "/auth/extendSession"
+      },
+      {
+        "path": "/auth/gateway"
+      },
+      {
+        "path": "/auth/gatewayLogin"
+      },
+      {
+        "path": "/auth/login"
+      },
+      {
+        "path": "/auth/login/V2"
+      },
+      {
+        "path": "/auth/login/V3"
+      },
+      {
+        "path": "/auth/logout"
+      },
+      {
+        "path": "/auth/lspToken"
+      },
+      {
+        "path": "/auth/mobile/sendOTP"
+      },
+      {
+        "path": "/auth/mobile/sendOTP/V2"
+      },
+      {
+        "path": "/auth/mobile/sendOtp"
+      },
+      {
+        "path": "/auth/mobile/verifyOTP"
+      },
+      {
+        "path": "/auth/mobile/verifyOTP/V2"
+      },
+      {
+        "path": "/auth/mobile/verifyOtp"
+      },
+      {
+        "path": "/auth/mobileLogin/V3"
+      },
+      {
+        "path": "/auth/otp"
+      },
+      {
+        "path": "/auth/refresh"
+      },
+      {
+        "path": "/auth/socialLogin"
+      },
+      {
+        "path": "/auth/socialLogin/V3"
+      },
+      {
+        "path": "/auth/token"
+      },
+      {
+        "path": "/auth/user/v2"
+      },
+      {
+        "path": "/auth/verify"
+      }
+    ]
+  },
+  "trading_apis": {
+    "description": "Trading & broker — trades, orders, remittances, gateway",
+    "endpoints": [
+      {
+        "path": "/api/v1/broker/application/status"
+      },
+      {
+        "path": "/api/v1/remittances"
+      },
+      {
+        "path": "/api/v1/trades"
+      },
+      {
+        "path": "/api/v1/trades/:tradeId"
+      },
+      {
+        "path": "/api/v1/trades/:tradeId/cancel"
+      },
+      {
+        "path": "/api/v1/trades/config"
+      },
+      {
+        "path": "/api/v1/trades/preview"
+      },
+      {
+        "path": "/gateway/connect/init"
+      },
+      {
+        "path": "/gateway/holdings/init"
+      },
+      {
+        "path": "/gateway/holdings/init/:id"
+      },
+      {
+        "path": "/gateway/holdings/mutualFunds/init"
+      },
+      {
+        "path": "/gateway/token"
+      },
+      {
+        "path": "/gateway/token/:id"
+      }
+    ]
+  },
+  "user_apis": {
+    "description": "User — profile, subscriptions, holdings, baskets, watchlists",
+    "endpoints": [
+      {
+        "path": "/api/v1/users/commission"
+      },
+      {
+        "path": "/api/v1/users/fund-history"
+      },
+      {
+        "path": "/api/v1/users/funds"
+      },
+      {
+        "path": "/api/v1/users/holdings/:ticker"
+      },
+      {
+        "path": "/api/v1/users/order-history"
+      },
+      {
+        "path": "/api/v1/users/tax-documents"
+      },
+      {
+        "path": "/api/v1/users/tax-documents/download-options"
+      },
+      {
+        "path": "/user/applyOffer"
+      },
+      {
+        "path": "/user/bank"
+      },
+      {
+        "path": "/user/basket"
+      },
+      {
+        "path": "/user/basket/securities/:sid"
+      },
+      {
+        "path": "/user/credit/combined/v3"
+      },
+      {
+        "path": "/user/credit/summary"
+      },
+      {
+        "path": "/user/dismissed"
+      },
+      {
+        "path": "/user/downgrade"
+      },
+      {
+        "path": "/user/flags"
+      },
+      {
+        "path": "/user/holdings"
+      },
+      {
+        "path": "/user/holdings/:sid"
+      },
+      {
+        "path": "/user/holdings/commentary"
+      },
+      {
+        "path": "/user/holdings/contribution"
+      },
+      {
+        "path": "/user/holdings/report"
+      },
+      {
+        "path": "/user/keyRatios"
+      },
+      {
+        "path": "/user/loan"
+      },
+      {
+        "path": "/user/loan/token"
+      },
+      {
+        "path": "/user/loan/token/v2"
+      },
+      {
+        "path": "/user/mfHoldings/insights/diversificationScore"
+      },
+      {
+        "path": "/user/mfholdings"
+      },
+      {
+        "path": "/user/mfholdings/commentary"
+      },
+      {
+        "path": "/user/mfholdings/disconnect"
+      },
+      {
+        "path": "/user/mfholdings/report"
+      },
+      {
+        "path": "/user/mutualfunds/creditlimit/v2"
+      },
+      {
+        "path": "/user/order/init"
+      },
+      {
+        "path": "/user/pan/confirm"
+      },
+      {
+        "path": "/user/pan/verify"
+      },
+      {
+        "path": "/user/profile"
+      },
+      {
+        "path": "/user/resendVerification"
+      },
+      {
+        "path": "/user/searchHistory"
+      },
+      {
+        "path": "/user/setFlag"
+      },
+      {
+        "path": "/user/status"
+      },
+      {
+        "path": "/user/subscription"
+      },
+      {
+        "path": "/user/trialEligibility"
+      },
+      {
+        "path": "/user/usequity/delink"
+      },
+      {
+        "path": "/user/usequity/token"
+      },
+      {
+        "path": "/users/:id/memberships"
+      },
+      {
+        "path": "/users/config"
+      },
+      {
+        "path": "/users/handle/:handle/status"
+      },
+      {
+        "path": "/users/stock/import/init"
+      },
+      {
+        "path": "/users/stock/import/refetch"
+      },
+      {
+        "path": "/users/stock/import/status"
+      },
+      {
+        "path": "/watchlists"
+      },
+      {
+        "path": "/watchlists/:id/addToBasket"
+      },
+      {
+        "path": "/watchlists/:watchlistId"
+      },
+      {
+        "path": "/watchlists/:watchlistId/constituents"
+      },
+      {
+        "path": "/watchlists/data"
+      },
+      {
+        "path": "/watchlists/tabs"
+      },
+      {
+        "path": "/watchlists/tabs/:key"
+      },
+      {
+        "path": "/watchlists/tabs/:tab"
+      }
+    ]
+  },
+  "social_apis": {
+    "description": "Community — posts, comments, polls, feeds",
+    "endpoints": [
+      {
+        "path": "/comments/:commentID"
+      },
+      {
+        "path": "/comments/share"
+      },
+      {
+        "path": "/polls/vote"
+      },
+      {
+        "path": "/posts/:postID"
+      },
+      {
+        "path": "/social"
+      },
+      {
+        "path": "/v2/comments"
+      },
+      {
+        "path": "/v2/comments/:commentID"
+      },
+      {
+        "path": "/v2/polls"
+      },
+      {
+        "path": "/v2/polls/:id"
+      },
+      {
+        "path": "/v2/posts"
+      },
+      {
+        "path": "/v3/feeds"
+      },
+      {
+        "path": "/v3/posts"
+      },
+      {
+        "path": "/v3/posts/:postID"
+      }
+    ]
+  },
+  "market_apis": {
+    "description": "Market — market movers, indices, MMI, sectors, homepage",
+    "endpoints": [
+      {
+        "path": "/homepage/events"
+      },
+      {
+        "path": "/homepage/indices"
+      },
+      {
+        "path": "/homepage/mmi"
+      },
+      {
+        "path": "/homepage/stocks"
+      },
+      {
+        "path": "/market-mood-index"
+      },
+      {
+        "path": "/market-mood-index/[component]"
+      },
+      {
+        "path": "/market-movers"
+      },
+      {
+        "path": "/market-movers/"
+      },
+      {
+        "path": "/market-movers/deals"
+      },
+      {
+        "path": "/market-movers/insights/[iType]"
+      },
+      {
+        "path": "/market-sectors"
+      },
+      {
+        "path": "/quotes"
+      },
+      {
+        "path": "/quotes/:market/latest"
+      },
+      {
+        "path": "/search/suggest"
+      },
+      {
+        "path": "/v2/homepage/events"
+      }
+    ]
+  },
+  "mf_screener_apis": {
+    "description": "Mutual Fund Screener — filters, screens, universes, export",
+    "endpoints": [
+      {
+        "path": "/mf-screener/customFilters"
+      },
+      {
+        "path": "/mf-screener/customFilters/:id"
+      },
+      {
+        "path": "/mf-screener/customFilters/bounds"
+      },
+      {
+        "path": "/mf-screener/customUniverses"
+      },
+      {
+        "path": "/mf-screener/customUniverses/:id"
+      },
+      {
+        "path": "/mf-screener/export"
+      },
+      {
+        "path": "/mf-screener/exportLimit"
+      },
+      {
+        "path": "/mf-screener/filters"
+      },
+      {
+        "path": "/mf-screener/prebuilt"
+      },
+      {
+        "path": "/mf-screener/query"
+      },
+      {
+        "path": "/mf-screener/screens"
+      },
+      {
+        "path": "/mf-screener/screens/:id"
+      },
+      {
+        "path": "/mf-screener/screens/load/:screenId"
+      },
+      {
+        "path": "/mf-screener/screens/load/default"
+      },
+      {
+        "path": "/mf-screener/screens/metadata"
+      },
+      {
+        "path": "/mf-screener/screens/user/:handle"
+      },
+      {
+        "path": "/mf-screener/universes"
+      },
+      {
+        "path": "/mf-screener/v2/prebuilt"
+      }
+    ]
+  },
+  "websocket_streams": {
+    "description": "Real-time WebSocket streams (Socket.IO over WebSocket transport)",
+    "server": "quotes-api.tickertape.in",
+    "transports": [
+      "websocket",
+      "polling"
+    ],
+    "discovered_namespaces": [
+      "/quotes?sids=${e.join(\",\")}",
+      "/quotes?sids=${e}"
+    ],
+    "context": [],
+    "route_socketio_mappings": {
+      "description": "Socket.IO paths in the app correspond to data namespaces",
+      "paths": [
+        "/stocks",
+        "/screener",
+        "/portfolio",
+        "/mutualfunds",
+        "/indices",
+        "/etfs",
+        "/pricing",
+        "/market-mood-index",
+        "/us-stocks",
+        "/profile",
+        "/space",
+        "/social-pricing"
+      ]
+    }
+  },
+  "all_hosts": {
+    "description": "Every discovered API host/subdomain",
+    "hosts": [
+      "http://assets.tickertape.in",
+      "https://analyze-api.prod.tickertape.in",
+      "https://analyze.api.tickertape.in",
+      "https://api.prod.tickertape.in",
+      "https://api.tickertape.in",
+      "https://assets.tickertape.in",
+      "https://auth-api.prod.tickertape.in",
+      "https://auth.api.tickertape.in",
+      "https://channels-api.prod.tickertape.in",
+      "https://channels.api.tickertape.in",
+      "https://community-api.prod.tickertape.in",
+      "https://community.api.tickertape.in",
+      "https://ecosystem.api.tickertape.in",
+      "https://gms-api-stag.tickertape.in",
+      "https://gms-api.tickertape.in",
+      "https://gold-api.prod.tickertape.in",
+      "https://gold.api.tickertape.in",
+      "https://help.tickertape.in",
+      "https://payments.api.tickertape.in",
+      "https://platform-ecosystem.api.tickertape.in",
+      "https://quotes-api.tickertape.in",
+      "https://stag.tickertape.in",
+      "https://www.tickertape.in"
+    ]
+  }
+}

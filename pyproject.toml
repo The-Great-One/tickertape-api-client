@@ -65,6 +65,10 @@ ignore_missing_imports = true
 module = "playwright.*"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "curl_cffi.*"
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 addopts = "-q --cov=tickertape_api --cov-report=term-missing"
 testpaths = ["tests"]
