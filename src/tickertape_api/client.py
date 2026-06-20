@@ -9,8 +9,11 @@ legitimate logged-in/premium session.
 
 from __future__ import annotations
 
+import functools
 import json
 import os
+import threading
+import time
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -19,6 +22,8 @@ import httpx
 
 from .credentials_store import normalize_credential_keys, read_credentials_file
 from .exceptions import TickertapeAPIError, TickertapeHTTPError
+from .ohlc import Candle, synthesize_ohlc, ohlc_to_list, group_intraday
+from .rate_limiter import RateLimiter
 from .types import JSON, JSONObject
 
 Market = Literal["IN", "US"]
@@ -63,9 +68,16 @@ class TickertapeClient:
         auth_token: str | None = None,
         cookie_header: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
+        rate_limit: float = 5.0,
+        rate_period: float = 1.0,
+        cache_ttl: float = 60.0,
     ) -> None:
         self._owns_client = client is None
-        self._client = client or httpx.Client(timeout=timeout, follow_redirects=True)
+        self._client = client or httpx.Client(
+            timeout=timeout,
+            follow_redirects=True,
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
         self._headers = {
             "accept": "application/json,text/plain,*/*",
             "user-agent": user_agent,
@@ -79,6 +91,12 @@ class TickertapeClient:
             self._headers["cookie"] = cookie_header.strip()
         if extra_headers:
             self._headers.update({key.lower(): value for key, value in extra_headers.items()})
+        # Rate limiter — 5 req/s by default, configurable
+        self._rate_limiter = RateLimiter(max_calls=rate_limit, period=rate_period)
+        # Simple in-memory TTL cache for GET requests
+        self._cache: dict[str, tuple[float, JSON]] = {}
+        self._cache_ttl = cache_ttl
+        self._cache_lock = threading.Lock()
 
     @classmethod
     def from_env(cls, *, account: str | None = None, **kwargs: Any) -> TickertapeClient:
@@ -132,7 +150,23 @@ class TickertapeClient:
         params: Mapping[str, Any] | None = None,
         json_body: Mapping[str, Any] | Sequence[Any] | None = None,
     ) -> JSONObject:
-        """Perform a raw request and return the unwrapped JSON object."""
+        """Perform a raw request and return the unwrapped JSON object.
+
+        GET requests are cached for ``cache_ttl`` seconds (default 60s).
+        All requests are rate-limited to respect Tickertape's request limits.
+        """
+
+        cache_key = ""
+        if method.upper() == "GET":
+            cache_key = f"{url}?{sorted(params.items()) if params else ''}"
+            with self._cache_lock:
+                if cache_key in self._cache:
+                    ts, cached = self._cache[cache_key]
+                    if time.monotonic() - ts < self._cache_ttl:
+                        return cast(JSONObject, cached)
+
+        # Respect rate limits
+        self._rate_limiter.acquire()
 
         response = self._client.request(
             method,
@@ -147,6 +181,10 @@ class TickertapeClient:
             raise TickertapeHTTPError(response.status_code, message, payload)
         if payload.get("success") is False:
             raise TickertapeAPIError(self._extract_error(payload) or "Tickertape API error", payload)
+        # Cache successful GET responses
+        if cache_key:
+            with self._cache_lock:
+                self._cache[cache_key] = (time.monotonic(), cast(JSON, payload))
         return payload
 
     def get(self, url: str, *, params: Mapping[str, Any] | None = None) -> JSONObject:
@@ -255,9 +293,53 @@ class TickertapeClient:
     def stock_intra_chart(self, sid: str) -> JSON:
         return self._data("GET", f"{self.api_base}/stocks/charts/intra/{sid}")
 
-    def stock_inter_chart(self, sid: str, *, start: int | None = None, end: int | None = None) -> JSON:
-        params = {k: v for k, v in {"start": start, "end": end}.items() if v is not None}
-        return self._data("GET", f"{self.api_base}/stocks/charts/inter/{sid}", params=params)
+    def stock_inter_chart(self, sid: str, *, duration: str = "1y") -> JSON:
+        """Return Indian stock inter-day chart data.
+
+        Parameters:
+            sid: Tickertape stock SID (e.g. ``RELI``).
+            duration: Chart duration — ``1w``, ``1m``, ``3m``, ``6m``, ``1y``,
+                ``5y``, ``max``. Default ``1y``.
+        """
+        return self._data(
+            "GET", f"{self.api_base}/stocks/charts/inter/{sid}",
+            params={"duration": duration},
+        )
+
+    def stock_ohlc(
+        self, sid: str, *, duration: str = "1y", frequency: str = "1D",
+    ) -> list[dict[str, Any]]:
+        """Return Indian stock OHLC candles.
+
+        Uses the inter-day chart endpoint. For durations >= 1m, Tickertape
+        returns one price point per day (the close), so O=H=L=C for daily
+        candles. For ``1w`` duration, Tickertape returns 5-minute intraday
+        data, which produces true OHLC with distinct open/high/low/close.
+
+        Parameters:
+            sid: Tickertape stock SID (e.g. ``RELI``).
+            duration: Chart duration — ``1w``, ``1m``, ``3m``, ``6m``, ``1y``,
+                ``5y``, ``max``. Default ``1y``. Use ``1w`` for true intraday OHLC.
+            frequency: Candle frequency — ``1D`` (daily), ``1W`` (weekly),
+                ``1M`` (monthly). Default ``1D``.
+
+        Returns:
+            List of dicts with ``timestamp``, ``open``, ``high``, ``low``,
+            ``close``, ``volume``.
+        """
+        raw = self.stock_inter_chart(sid, duration=duration)
+        candles = synthesize_ohlc(raw, frequency=frequency)
+        return ohlc_to_list(candles)
+
+    def stock_intraday_ohlc(self, sid: str) -> list[dict[str, Any]]:
+        """Return today's intraday OHLC candles (5-minute granularity).
+
+        Fetches the intraday chart and groups by 5-minute intervals to
+        produce candles with distinct open/high/low/close within the session.
+        """
+        raw = self.stock_intra_chart(sid)
+        candles = group_intraday(raw, interval_minutes=5)
+        return ohlc_to_list(candles)
 
     def stock_news(self, sid: str) -> JSON:
         return self._data("GET", f"{self.api_base}/stocks/news/{sid}")
@@ -376,6 +458,28 @@ class TickertapeClient:
             f"{self.gms_base}/US/securities/{ticker}/charts/inter",
             params={"duration": duration},
         )
+
+    def us_ohlc(
+        self, ticker: str, *, duration: str = "1y", frequency: str = "1D",
+        asset_type: Literal["securities", "etfs"] = "securities",
+    ) -> list[dict[str, Any]]:
+        """Return US stock/ETF OHLC candles.
+
+        Fetches the inter-day chart and synthesizes OHLC candles client-side.
+
+        Parameters:
+            ticker: US ticker (e.g. ``AAPL``).
+            duration: Chart duration — ``1w``, ``1m``, ``1y``, ``5y``, ``max``.
+            frequency: Candle frequency — ``1D``, ``1W``, ``1M``.
+            asset_type: ``securities`` or ``etfs``.
+        """
+        raw = self._data(
+            "GET",
+            f"{self.gms_base}/US/{asset_type}/{ticker}/charts/inter",
+            params={"duration": duration},
+        )
+        candles = synthesize_ohlc(raw, frequency=frequency)
+        return ohlc_to_list(candles)
 
     # ---- market mood / product widgets ------------------------------------
 
@@ -514,6 +618,23 @@ class TickertapeClient:
             f"{self.api_base}/mutualfunds/{mf_id}/charts/inter",
             params={"duration": duration},
         )
+
+    def mutual_fund_ohlc(
+        self, mf_id: str, *, duration: str = "1y", frequency: str = "1D",
+    ) -> list[dict[str, Any]]:
+        """Return mutual fund OHLC candles.
+
+        Fetches the inter-day NAV chart and synthesizes OHLC candles client-side.
+
+        Parameters:
+            mf_id: Tickertape mutual fund ID.
+            duration: Chart duration — ``1w``, ``1m``, ``3m``, ``6m``, ``1y``,
+                ``5y``, ``max``.
+            frequency: Candle frequency — ``1D``, ``1W``, ``1M``.
+        """
+        raw = self.mutual_fund_chart(mf_id, duration=duration)
+        candles = synthesize_ohlc(raw, frequency=frequency)
+        return ohlc_to_list(candles)
 
     def mutual_fund_sip_chart(self, mf_id: str) -> JSON:
         return self._data("GET", f"{self.api_base}/mutualfunds/{mf_id}/charts/sip")
