@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 from typing import Any, Literal
 
+from .credentials_store import DEFAULT_CREDENTIALS_PATH, read_credentials_file
 from .exceptions import TickertapeAPIError, TickertapeHTTPError
 
 
@@ -26,6 +27,9 @@ class PortfolioClient:
             when not provided (any cookie key containing ``csrf``).
         credentials_file: JSON file path. Defaults to
             ``~/.config/tickertape-api-client/credentials.json``.
+        account: Named account from the credentials file's ``"accounts"`` dict.
+            When ``None`` (default), uses ``TICKERTAPE_ACCOUNT`` env var or
+            the first entry.  Ignored when the file uses flat keys.
         impersonate: curl_cffi browser version to impersonate (default
             ``chrome124`` — the most reliably undetected fingerprint).
         timeout: Per-request timeout in seconds.
@@ -47,6 +51,7 @@ class PortfolioClient:
         cookie_dict: dict[str, str] | None = None,
         csrf_token: str | None = None,
         credentials_file: str | os.PathLike[str] | None = None,
+        account: str | None = None,
         impersonate: str = "chrome124",
         timeout: float = 15.0,
     ) -> None:
@@ -55,7 +60,7 @@ class PortfolioClient:
 
         # --- resolve credentials ---
         if cookie_dict is None:
-            creds = self._read_credentials_file(credentials_file)
+            creds = read_credentials_file(credentials_file, account=account)
             cookie_dict = creds.get("cookie_dict") or {}
             if not cookie_dict:
                 # Backwards compat: parse cookie_header
@@ -67,6 +72,14 @@ class PortfolioClient:
         if csrf_token is None:
             csrf_token = self._find_csrf_token(self.cookie_dict)
         self.csrf_token = csrf_token
+
+        # --- store for write-back during JWT refresh ---
+        self._credentials_file = (
+            Path(credentials_file).expanduser()
+            if credentials_file
+            else DEFAULT_CREDENTIALS_PATH
+        )
+        self._account = account
 
         # --- lazy import (curl_cffi is an optional dependency) ---
         try:
@@ -84,30 +97,6 @@ class PortfolioClient:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _read_credentials_file(
-        path: str | os.PathLike[str] | None = None,
-    ) -> dict[str, Any]:
-        credentials_path = (
-            Path(path).expanduser()
-            if path
-            else Path.home() / ".config" / "tickertape-api-client" / "credentials.json"
-        )
-        if not credentials_path.exists():
-            return {}
-        try:
-            payload = json.loads(credentials_path.read_text())
-        except (OSError, json.JSONDecodeError) as exc:
-            raise TickertapeAPIError(
-                f"Could not read Tickertape credentials file: {credentials_path}", str(exc)
-            ) from exc
-        if not isinstance(payload, dict):
-            raise TickertapeAPIError(
-                f"Tickertape credentials file must contain a JSON object: {credentials_path}",
-                payload,
-            )
-        return payload
-
-    @staticmethod
     def _parse_cookie_header(header: str) -> dict[str, str]:
         """Parse a ``Cookie`` header string into a dict."""
         result: dict[str, str] = {}
@@ -119,11 +108,207 @@ class PortfolioClient:
 
     @staticmethod
     def _find_csrf_token(cookies: dict[str, str]) -> str:
-        """Find the CSRF token in cookie keys."""
+        """Find the CSRF token in cookie keys.
+
+        Tickertape uses ``x-lp-tk`` / ``x-us-lp-tk`` for CSRF.
+        Falls back to any key whose name contains ``csrf`` or ends with ``-tk``.
+        """
+        # Prefer the dedicated CSRF token cookie (short, API-facing)
+        for key in ("x-csrf-token-tickertape-prod", "x-csrf-token"):
+            if key in cookies:
+                return cookies[key]
+        # Next: x-lp-tk / x-us-lp-tk (used as CSRF by some endpoints)
+        for key in ("x-lp-tk", "x-us-lp-tk"):
+            if key in cookies:
+                return cookies[key]
+        # Broader search: csrf in name or -tk suffix
         for key, value in cookies.items():
-            if "csrf" in key.lower():
+            lowered = key.lower()
+            if "csrf" in lowered or lowered.endswith("-tk"):
                 return value
         return ""
+
+    # JWT refresh endpoint (curl_cffi works — no WAF on auth.api subdomain)
+    _REFRESH_URL = "https://auth.api.tickertape.in/auth/refresh"
+    # Refresh when JWT has less than this many seconds remaining
+    _REFRESH_THRESHOLD = 3600  # 1 hour
+
+    def _jwt_expires_in(self) -> float | None:
+        """Return seconds until JWT expiry, or None if JWT is missing/unparseable."""
+        jwt = self.cookie_dict.get("jwt", "")
+        if not jwt:
+            return None
+        try:
+            import base64 as _base64
+            parts = jwt.split(".")
+            if len(parts) != 3:
+                return None
+            payload = json.loads(_base64.urlsafe_b64decode(parts[1] + "=="))
+            exp = payload.get("exp")
+            if not exp:
+                return None
+            import time as _time
+            return exp - _time.time()
+        except Exception:
+            return None
+
+    def _refresh_jwt_if_needed(self) -> bool:
+        """Refresh the JWT via curl_cffi if it's near expiry.
+
+        Calls ``auth.api.tickertape.in/auth/refresh`` with the refreshToken
+        from the current JWT payload. The endpoint returns a fresh JWT in
+        both the response body and Set-Cookie header.
+
+        Returns True if a refresh was attempted (success or failure),
+        False if no refresh was needed.
+        """
+        expires_in = self._jwt_expires_in()
+        if expires_in is None or expires_in > self._REFRESH_THRESHOLD:
+            return False
+
+        refresh_token = None
+        try:
+            import base64 as _base64
+            jwt = self.cookie_dict.get("jwt", "")
+            parts = jwt.split(".")
+            payload = json.loads(_base64.urlsafe_b64decode(parts[1] + "=="))
+            refresh_token = payload.get("refreshToken")
+        except Exception:
+            return False
+
+        if not refresh_token:
+            return False
+
+        csrf = self.csrf_token or self.cookie_dict.get("x-csrf-token-tickertape-prod", "")
+
+        try:
+            r = self._session.post(
+                self._REFRESH_URL,
+                cookies=self.cookie_dict,
+                headers={
+                    "accept": "application/json, text/plain, */*",
+                    "content-type": "application/json",
+                    "origin": "https://www.tickertape.in",
+                    "referer": "https://www.tickertape.in/portfolio/mutualfunds",
+                    "sec-fetch-dest": "empty",
+                    "sec-fetch-mode": "cors",
+                    "sec-fetch-site": "same-site",
+                    "user-agent": self._DEFAULT_UA,
+                    "x-csrf-token": csrf,
+                },
+                json={"refreshToken": refresh_token},
+                impersonate=self.impersonate,  # type: ignore[arg-type]
+                timeout=self.timeout,
+            )
+        except Exception:
+            return False
+
+        if not r.ok:
+            return False
+
+        # Capture Set-Cookie (server sends fresh jwt cookie)
+        self._update_cookies_from_response(r)
+
+        # Also check response body for the new JWT
+        try:
+            data = r.json()
+            if isinstance(data, dict) and "jwt" in data:
+                new_jwt = data["jwt"]
+                if new_jwt and new_jwt != self.cookie_dict.get("jwt", ""):
+                    self.cookie_dict["jwt"] = new_jwt
+                    self.csrf_token = self._find_csrf_token(self.cookie_dict)
+                    self._persist_credentials()
+        except Exception:
+            pass
+
+        return True
+
+    def _update_cookies_from_response(self, response: Any) -> None:
+        """Capture Set-Cookie headers from a response and update our cookie dict.
+
+        Most Tickertape API endpoints do NOT rotate the JWT via Set-Cookie.
+        The JWT expires after 24h and must be refreshed via a separate call to
+        ``auth.api.tickertape.in/auth/refresh`` (requires a real browser — the
+        endpoint is behind a CloudFront WAF that blocks curl_cffi).
+
+        This method still captures any Set-Cookie headers as a best-effort
+        mechanism, and persists changes to disk.
+
+        Also re-derives ``self.csrf_token`` if a CSRF-related cookie changed.
+        """
+        raw_headers = response.headers
+        if not raw_headers:
+            return
+
+        # curl_cffi headers are case-insensitive dict-like.
+        # Multiple Set-Cookie headers may be joined with '\n' or appear as a list.
+        set_cookie = raw_headers.get("set-cookie")
+        if not set_cookie:
+            return
+
+        changed = False
+        # Handle both single string and list-of-strings from curl_cffi
+        cookie_strings: list[str] = (
+            [set_cookie] if isinstance(set_cookie, str) else list(set_cookie)
+        )
+        for entry in cookie_strings:
+            for pair in entry.split(";"):
+                pair = pair.strip()
+                if "=" in pair and not pair.lower().startswith(
+                    ("path=", "domain=", "expires=", "max-age=", "httponly", "secure", "samesite")
+                ):
+                    name, value = pair.split("=", 1)
+                    old = self.cookie_dict.get(name)
+                    # NEVER downgrade: if the old value is non-empty and the new is
+                    # empty, the server is clearing the cookie (common on 401/403
+                    # responses with Set-Cookie: jwt=). Skip the update to preserve
+                    # the valid cookie for future session-refresh attempts.
+                    if old and not value:
+                        continue
+                    if old != value:
+                        self.cookie_dict[name] = value
+                        changed = True
+
+        if changed:
+            # Re-derive CSRF token if cookies changed
+            self.csrf_token = self._find_csrf_token(self.cookie_dict)
+            self._persist_credentials()
+
+    def _persist_credentials(self) -> None:
+        """Write current cookie_dict back to the correct account slot."""
+        try:
+            # Read the full file to preserve other accounts
+            full: dict[str, Any] = {}
+            if self._credentials_file.exists():
+                try:
+                    full = json.loads(self._credentials_file.read_text())
+                except (OSError, json.JSONDecodeError):
+                    pass
+            if not isinstance(full, dict):
+                full = {}
+
+            if self._account:
+                # Multi-account: update the named slot
+                full.setdefault("accounts", {})
+                full["accounts"][self._account] = {
+                    "cookie_dict": dict(self.cookie_dict),
+                    "cookie_header": "; ".join(
+                        f"{k}={v}" for k, v in self.cookie_dict.items()
+                    ),
+                }
+            else:
+                # Flat mode: update top-level keys
+                full["cookie_dict"] = dict(self.cookie_dict)
+                full["cookie_header"] = "; ".join(
+                    f"{k}={v}" for k, v in self.cookie_dict.items()
+                )
+
+            self._credentials_file.parent.mkdir(parents=True, exist_ok=True)
+            os.chmod(self._credentials_file.parent, 0o700)
+            self._credentials_file.write_text(json.dumps(full, indent=2) + "\n")
+            os.chmod(self._credentials_file, 0o600)
+        except (OSError, json.JSONDecodeError):
+            pass  # best-effort — don't crash requests if file-write fails
 
     # ------------------------------------------------------------------
     # HTTP helpers
@@ -157,6 +342,9 @@ class PortfolioClient:
         referer: str = "https://www.tickertape.in/",
         headers: dict[str, str] | None = None,
     ) -> Any:
+        # Auto-refresh JWT if near expiry (uses real browser for WAF-protected endpoint)
+        self._refresh_jwt_if_needed()
+
         hdrs = self._build_headers(referer=referer)
         if headers:
             hdrs.update({k.lower(): v for k, v in headers.items()})
@@ -186,7 +374,14 @@ class PortfolioClient:
 
         if not r.ok:
             msg = data.get("error") or data.get("message") or r.reason or "Unknown error"
+            # Still try to update cookies even on error — some servers send a fresh
+            # jwt in Set-Cookie alongside a 401/403, especially near expiry.
+            self._update_cookies_from_response(r)
             raise TickertapeHTTPError(r.status_code, msg, data)
+
+        # Capture Set-Cookie headers from the response and update our cookie dict
+        # so the JWT gets refreshed silently (server sends a new jwt cookie on each request).
+        self._update_cookies_from_response(r)
 
         return data
 
