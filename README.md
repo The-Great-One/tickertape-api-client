@@ -84,6 +84,59 @@ Credentials are saved to:
 
 The command does **not** submit your password, bypass 2FA/CAPTCHA, or replicate private login APIs.
 
+### Multi-Account Support
+
+To manage multiple Tickertape accounts (e.g., personal and family), use the
+`--account` flag on any CLI command:
+
+```bash
+# Capture credentials for different accounts
+tickertape auth-browserless --account sahil 7666696636:1234
+tickertape auth-browserless --account dad   9888898888:5678
+
+# Use a specific account
+tickertape --account sahil portfolio-summary
+tickertape --account dad   portfolio-mf
+
+# Set default account via environment variable
+export TICKERTAPE_ACCOUNT=sahil
+tickertape portfolio-summary  # uses "sahil"
+```
+
+The credentials file stores accounts in an `"accounts"` dict:
+
+```json
+{
+  "accounts": {
+    "sahil": {
+      "cookie_header": "...",
+      "cookie_dict": {"jwt": "...", ...}
+    },
+    "dad": {
+      "cookie_header": "...",
+      "cookie_dict": {"jwt": "...", ...}
+    }
+  }
+}
+```
+
+Programmatic usage:
+
+```python
+from tickertape_api import PortfolioClient, TickertapeClient
+
+# PortfolioClient with named account
+with PortfolioClient(account="sahil") as pc:
+    print(pc.mf_holdings())
+
+# TickertapeClient with named account
+with TickertapeClient.from_env(account="dad") as tt:
+    print(tt.screener_screens())
+```
+
+The old flat format (top-level `cookie_header` / `cookie_dict` keys) continues
+to work and is treated as the default account.
+
 ## Endpoint coverage
 
 ### Market status
