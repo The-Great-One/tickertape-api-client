@@ -1,11 +1,10 @@
-# Stock screener filters
+# Stock Screener Filters
 
-This list is generated from `GET https://api.tickertape.in/screener/filters` and documents the `label` values to use in `project`, `match`, and `sortBy` fields for `TickertapeClient.screener_query(...)`.
+This list is generated from `GET https://api.tickertape.in/screener/filters` and documents the `label` values for `project`, `match`, and `sortBy` fields in `TickertapeClient.screener_query(...)`.
 
-Notes:
-
-- `premium: yes` means Tickertape currently marks the field as premium/locked. Querying that field without a logged-in session that has access returns a 403 such as `No access for <label>`.
-- Use `TickertapeClient.from_env()` with `TICKERTAPE_AUTH_TOKEN`, `TICKERTAPE_COOKIE`, or the persistent credentials file documented in the README for premium fields.
+**Notes:**
+- `premium: yes` = Tickertape marks the field as premium/locked. Querying without an authorized session returns 403.
+- Use `TickertapeClient.from_env()` with `TICKERTAPE_AUTH_TOKEN`, `TICKERTAPE_COOKIE`, or the persistent credentials file for premium fields.
 - These are undocumented web-app fields and can change without notice.
 
 ## General
