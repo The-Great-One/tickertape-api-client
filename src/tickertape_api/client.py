@@ -308,6 +308,7 @@ class TickertapeClient:
 
     def stock_ohlc(
         self, sid: str, *, duration: str = "1y", frequency: str = "1D",
+        adjust_splits: bool = True,
     ) -> list[dict[str, Any]]:
         """Return Indian stock OHLC candles.
 
@@ -322,23 +323,47 @@ class TickertapeClient:
                 ``5y``, ``max``. Default ``1y``. Use ``1w`` for true intraday OHLC.
             frequency: Candle frequency — ``1D`` (daily), ``1W`` (weekly),
                 ``1M`` (monthly). Default ``1D``.
+            adjust_splits: If True (default), detect stock splits and adjust
+                pre-split prices so the entire series is on a post-split basis.
 
         Returns:
             List of dicts with ``timestamp``, ``open``, ``high``, ``low``,
             ``close``, ``volume``.
         """
         raw = self.stock_inter_chart(sid, duration=duration)
-        candles = synthesize_ohlc(raw, frequency=frequency)
+        candles = synthesize_ohlc(raw, frequency=frequency, adjust_splits=adjust_splits)
         return ohlc_to_list(candles)
 
-    def stock_intraday_ohlc(self, sid: str) -> list[dict[str, Any]]:
+    def stock_ohlc_with_splits(
+        self, sid: str, *, duration: str = "1y", frequency: str = "1D",
+        adjust_splits: bool = True,
+    ) -> dict[str, Any]:
+        """Return Indian stock OHLC candles with split metadata.
+
+        Like :meth:`stock_ohlc` but also returns detected stock split events.
+
+        Returns:
+            Dict with ``candles`` (list of OHLC dicts) and ``splits``
+            (list of split events with ``date``, ``ratio``, ``old_price``,
+            ``new_price``).
+        """
+        from .ohlc import synthesize_ohlc_with_splits
+        raw = self.stock_inter_chart(sid, duration=duration)
+        result = synthesize_ohlc_with_splits(raw, frequency=frequency, adjust_splits=adjust_splits)
+        return result.as_dict()
+
+    def stock_intraday_ohlc(self, sid: str, *, adjust_splits: bool = True) -> list[dict[str, Any]]:
         """Return today's intraday OHLC candles (5-minute granularity).
 
         Fetches the intraday chart and groups by 5-minute intervals to
         produce candles with distinct open/high/low/close within the session.
+
+        Parameters:
+            sid: Tickertape stock SID.
+            adjust_splits: If True (default), detect and adjust for stock splits.
         """
         raw = self.stock_intra_chart(sid)
-        candles = group_intraday(raw, interval_minutes=5)
+        candles = group_intraday(raw, interval_minutes=5, adjust_splits=adjust_splits)
         return ohlc_to_list(candles)
 
     def stock_news(self, sid: str) -> JSON:
@@ -462,6 +487,7 @@ class TickertapeClient:
     def us_ohlc(
         self, ticker: str, *, duration: str = "1y", frequency: str = "1D",
         asset_type: Literal["securities", "etfs"] = "securities",
+        adjust_splits: bool = True,
     ) -> list[dict[str, Any]]:
         """Return US stock/ETF OHLC candles.
 
@@ -472,13 +498,15 @@ class TickertapeClient:
             duration: Chart duration — ``1w``, ``1m``, ``1y``, ``5y``, ``max``.
             frequency: Candle frequency — ``1D``, ``1W``, ``1M``.
             asset_type: ``securities`` or ``etfs``.
+            adjust_splits: If True (default), detect stock splits and adjust
+                pre-split prices so the entire series is on a post-split basis.
         """
         raw = self._data(
             "GET",
             f"{self.gms_base}/US/{asset_type}/{ticker}/charts/inter",
             params={"duration": duration},
         )
-        candles = synthesize_ohlc(raw, frequency=frequency)
+        candles = synthesize_ohlc(raw, frequency=frequency, adjust_splits=adjust_splits)
         return ohlc_to_list(candles)
 
     # ---- market mood / product widgets ------------------------------------
@@ -621,6 +649,7 @@ class TickertapeClient:
 
     def mutual_fund_ohlc(
         self, mf_id: str, *, duration: str = "1y", frequency: str = "1D",
+        adjust_splits: bool = True,
     ) -> list[dict[str, Any]]:
         """Return mutual fund OHLC candles.
 
@@ -631,9 +660,12 @@ class TickertapeClient:
             duration: Chart duration — ``1w``, ``1m``, ``3m``, ``6m``, ``1y``,
                 ``5y``, ``max``.
             frequency: Candle frequency — ``1D``, ``1W``, ``1M``.
+            adjust_splits: If True (default), detect and adjust for stock splits.
+                Note: MF NAV data rarely has splits, but the adjustment is
+                applied for consistency.
         """
         raw = self.mutual_fund_chart(mf_id, duration=duration)
-        candles = synthesize_ohlc(raw, frequency=frequency)
+        candles = synthesize_ohlc(raw, frequency=frequency, adjust_splits=adjust_splits)
         return ohlc_to_list(candles)
 
     def mutual_fund_sip_chart(self, mf_id: str) -> JSON:
