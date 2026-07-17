@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 from typing import Any, Literal
 
-from .credentials_store import DEFAULT_CREDENTIALS_PATH, read_credentials_file
+from .credentials_store import DEFAULT_CREDENTIALS_PATH, list_accounts, read_credentials_file
 from .exceptions import TickertapeAPIError, TickertapeHTTPError
 
 
@@ -44,6 +44,42 @@ class PortfolioClient:
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
     )
+
+    @classmethod
+    def iter_accounts(
+        cls,
+        credentials_file: str | os.PathLike[str] | None = None,
+        *,
+        impersonate: str = "chrome124",
+        timeout: float = 15.0,
+    ):
+        """Yield a ``PortfolioClient`` for every account in the credentials file.
+
+        When the file is in flat format (no ``"accounts"`` key), yields a single
+        client with ``account=None`` (backward compatible).
+
+        Usage::
+
+            for client in PortfolioClient.iter_accounts():
+                print(client.account, client.holdings_status())
+        """
+        accounts = list_accounts(credentials_file)
+        if not accounts:
+            # Flat format — yield one client with no account
+            yield cls(
+                credentials_file=credentials_file,
+                account=None,
+                impersonate=impersonate,
+                timeout=timeout,
+            )
+        else:
+            for name in accounts:
+                yield cls(
+                    credentials_file=credentials_file,
+                    account=name,
+                    impersonate=impersonate,
+                    timeout=timeout,
+                )
 
     def __init__(
         self,
@@ -131,7 +167,7 @@ class PortfolioClient:
     # JWT refresh endpoint (curl_cffi works — no WAF on auth.api subdomain)
     _REFRESH_URL = "https://auth.api.tickertape.in/auth/refresh"
     # Refresh when JWT has less than this many seconds remaining
-    _REFRESH_THRESHOLD = 3600  # 1 hour
+    _REFRESH_THRESHOLD = 43200  # 12 hours — ensures daily cron always refreshes
 
     def _jwt_expires_in(self) -> float | None:
         """Return seconds until JWT expiry, or None if JWT is missing/unparseable."""

@@ -79,6 +79,30 @@ def read_credentials_file(
     return dict(payload)
 
 
+def list_accounts(
+    path: str | os.PathLike[str] | None = None,
+) -> list[str]:
+    """Return all account names from the credentials file.
+
+    Returns an empty list when the file is in flat format (no ``"accounts"`` key).
+    """
+    credentials_path = (
+        Path(path).expanduser() if path else DEFAULT_CREDENTIALS_PATH
+    )
+    if not credentials_path.exists():
+        return []
+    try:
+        payload = json.loads(credentials_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return []
+    if not isinstance(payload, dict):
+        return []
+    accounts = payload.get("accounts")
+    if isinstance(accounts, dict):
+        return sorted(accounts)
+    return []
+
+
 def normalize_credential_keys(raw: dict[str, Any]) -> dict[str, str]:
     """Normalize legacy key names to canonical form.
 

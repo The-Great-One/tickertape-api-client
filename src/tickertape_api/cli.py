@@ -122,6 +122,12 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("portfolio-watchlists", parents=[account_parent], help="User watchlists")
     p = sub.add_parser("portfolio-quotes", parents=[account_parent], help="Live quotes for portfolio stocks")
 
+    p = sub.add_parser(
+        "refresh-all", parents=[account_parent],
+        help="Refresh portfolio data for ALL accounts and print summary",
+    )
+    p.add_argument("--out", default=None, help="Optional JSON output path for cache file")
+
     args = parser.parse_args(argv)
     if args.cmd == "auth-capture":
         path = capture_credentials_interactively(
@@ -186,6 +192,53 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     # ---- portfolio commands (authenticated) ----
+    if args.cmd == "refresh-all":
+        from datetime import datetime, timezone, timedelta
+        ist = timezone(timedelta(hours=5, minutes=30))
+        cached_at = datetime.now(ist).isoformat()
+
+        all_accounts = {}
+        errors = []
+        for client in PortfolioClient.iter_accounts():
+            name = client._account or "default"
+            try:
+                status = client.holdings_status()
+                mf = client.mf_holdings()
+                us_assets = [a for a in status.get("assetsStatus", []) if a.get("type") == "US_STOCK"]
+                us_count = len(us_assets[0].get("meta", {}).get("constituents", [])) if us_assets else 0
+                mf_count = len(mf.get("mfHoldings", [])) if isinstance(mf, dict) else 0
+                stock_assets = [a for a in status.get("assetsStatus", []) if a.get("type") == "STOCK"]
+                stock_count = len(stock_assets[0].get("meta", {}).get("constituents", [])) if stock_assets else 0
+                all_accounts[name] = {
+                    "holdings_status": status,
+                    "mf_holdings": mf,
+                    "cached_at": cached_at,
+                }
+                print(f"  {name}: {stock_count} stocks, {us_count} US, {mf_count} MF")
+            except Exception as e:
+                errors.append(f"{name}: {type(e).__name__}: {e}")
+                print(f"  {name}: FAILED — {type(e).__name__}: {e}")
+
+        total = len(all_accounts)
+        print(f"\n{total}/{total + len(errors)} accounts OK")
+
+        if args.out:
+            cache = {
+                "accounts": all_accounts,
+                "cached_at": cached_at,
+                "source": "v3 multi-account",
+            }
+            out_path = Path(args.out).expanduser()
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(json.dumps(cache, indent=2, default=str))
+            print(f"Cache written to {out_path}")
+
+        if errors:
+            for e in errors:
+                print(f"  ⚠️  {e}", file=sys.stderr)
+            return 1
+        return 0
+
     if args.cmd.startswith("portfolio"):
         with PortfolioClient(account=args.account) as pc:
             if args.cmd == "portfolio-summary":
