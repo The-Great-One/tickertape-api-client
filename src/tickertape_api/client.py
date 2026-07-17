@@ -9,20 +9,18 @@ legitimate logged-in/premium session.
 
 from __future__ import annotations
 
-import functools
 import json
 import os
 import threading
 import time
 from collections.abc import Mapping, Sequence
-from pathlib import Path
 from typing import Any, Literal, cast
 
 import httpx
 
 from .credentials_store import normalize_credential_keys, read_credentials_file
 from .exceptions import TickertapeAPIError, TickertapeHTTPError
-from .ohlc import Candle, synthesize_ohlc, ohlc_to_list, group_intraday
+from .ohlc import group_intraday, ohlc_to_list, synthesize_ohlc
 from .rate_limiter import RateLimiter
 from .types import JSON, JSONObject
 

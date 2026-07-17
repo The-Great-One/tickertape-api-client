@@ -2,6 +2,7 @@
 
 from .auth_capture import capture_credentials_via_hybrid, get_auth_token
 from .client import TickertapeClient
+from .credentials_store import list_accounts, read_credentials_file
 from .exceptions import TickertapeAPIError, TickertapeError, TickertapeHTTPError
 from .ohlc import (
     Candle,
@@ -14,7 +15,6 @@ from .ohlc import (
     synthesize_ohlc,
     synthesize_ohlc_with_splits,
 )
-from .credentials_store import list_accounts, read_credentials_file
 from .portfolio_client import PortfolioClient
 from .rate_limiter import RateLimiter
 
