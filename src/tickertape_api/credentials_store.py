@@ -27,8 +27,8 @@ def read_credentials_file(
 
         {
           "accounts": {
-            "sahil": {"cookie_header": "...", "cookie_dict": {...}},
-            "dad":   {"cookie_header": "...", "cookie_dict": {...}}
+            "primary": {"cookie_header": "...", "cookie_dict": {...}},
+            "family":   {"cookie_header": "...", "cookie_dict": {...}}   {"cookie_header": "...", "cookie_dict": {...}}
           }
         }
 

@@ -91,16 +91,16 @@ To manage multiple Tickertape accounts (e.g., personal and family), use the
 
 ```bash
 # Capture credentials for different accounts
-tickertape auth-browserless --account sahil 7666696636:1234
-tickertape auth-browserless --account dad   9888898888:5678
+tickertape auth-browserless --account primary 9876543210:1234
+tickertape auth-browserless --account family  9123456789:5678
 
 # Use a specific account
-tickertape --account sahil portfolio-summary
+tickertape --account primary portfolio-summary
 tickertape --account dad   portfolio-mf
 
 # Set default account via environment variable
-export TICKERTAPE_ACCOUNT=sahil
-tickertape portfolio-summary  # uses "sahil"
+export TICKERTAPE_ACCOUNT=primary
+tickertape portfolio-summary  # uses "primary"
 ```
 
 The credentials file stores accounts in an `"accounts"` dict:
@@ -108,7 +108,7 @@ The credentials file stores accounts in an `"accounts"` dict:
 ```json
 {
   "accounts": {
-    "sahil": {
+    "primary": {
       "cookie_header": "...",
       "cookie_dict": {"jwt": "...", ...}
     },
@@ -126,7 +126,7 @@ Programmatic usage:
 from tickertape_api import PortfolioClient, TickertapeClient
 
 # PortfolioClient with named account
-with PortfolioClient(account="sahil") as pc:
+with PortfolioClient(account="primary") as pc:
     print(pc.mf_holdings())
 
 # TickertapeClient with named account

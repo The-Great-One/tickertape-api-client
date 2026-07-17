@@ -18,12 +18,12 @@ def test_read_named_account(tmp_path: Path):
     p = tmp_path / "creds.json"
     p.write_text(json.dumps({
         "accounts": {
-            "sahil": {"cookie_header": "sid=sahil", "cookie_dict": {"jwt": "j1"}},
+            "primary": {"cookie_header": "sid=primary", "cookie_dict": {"jwt": "j1"}},
             "dad":   {"cookie_header": "sid=dad",   "cookie_dict": {"jwt": "j2"}},
         }
     }))
-    result = read_credentials_file(p, account="sahil")
-    assert result == {"cookie_header": "sid=sahil", "cookie_dict": {"jwt": "j1"}}
+    result = read_credentials_file(p, account="primary")
+    assert result == {"cookie_header": "sid=primary", "cookie_dict": {"jwt": "j1"}}
 
     result2 = read_credentials_file(p, account="dad")
     assert result2 == {"cookie_header": "sid=dad", "cookie_dict": {"jwt": "j2"}}
@@ -33,12 +33,12 @@ def test_read_default_account_from_dict(tmp_path: Path):
     p = tmp_path / "creds.json"
     p.write_text(json.dumps({
         "accounts": {
-            "sahil": {"cookie_header": "sid=sahil"},
+            "primary": {"cookie_header": "sid=primary"},
             "dad":   {"cookie_header": "sid=dad"},
         }
     }))
     result = read_credentials_file(p)  # no account specified
-    assert result == {"cookie_header": "sid=sahil"}  # first key is default
+    assert result == {"cookie_header": "sid=primary"}  # first key is default
 
 
 def test_read_env_var_selects_account(monkeypatch, tmp_path: Path):
@@ -46,7 +46,7 @@ def test_read_env_var_selects_account(monkeypatch, tmp_path: Path):
     p = tmp_path / "creds.json"
     p.write_text(json.dumps({
         "accounts": {
-            "sahil": {"cookie_header": "sid=sahil"},
+            "primary": {"cookie_header": "sid=primary"},
             "dad":   {"cookie_header": "sid=dad"},
         }
     }))
@@ -57,7 +57,7 @@ def test_read_env_var_selects_account(monkeypatch, tmp_path: Path):
 def test_read_missing_account_raises(tmp_path: Path):
     p = tmp_path / "creds.json"
     p.write_text(json.dumps({
-        "accounts": {"sahil": {"cookie_header": "sid=sahil"}}
+        "accounts": {"primary": {"cookie_header": "sid=primary"}}
     }))
     import pytest
     with pytest.raises(KeyError, match="Account 'nobody' not found"):

@@ -102,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument(
         "phone",
-        help="Phone number (digits only). Use 'phone:otp' to pass both at once (e.g. 7666696636:1234)",
+        help="Phone number (digits only). Use 'phone:otp' to pass both at once (e.g. 9876543210:1234)",
     )
     p.add_argument(
         "--country-code", default="+91", help="Country code (default: +91)"

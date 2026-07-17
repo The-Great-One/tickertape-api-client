@@ -202,7 +202,7 @@ def test_auth_set_with_account_preserves_other_accounts(tmp_path, capsys):
     # Pre-populate with two accounts
     out.write_text(json.dumps({
         "accounts": {
-            "sahil": {"auth_token": "tok-sahil", "cookie_header": "sid=sahil"},
+            "primary": {"auth_token": "tok-primary", "cookie_header": "sid=primary"},
             "dad":   {"auth_token": "tok-dad-old", "cookie_header": "sid=dad-old"},
         }
     }))
@@ -214,8 +214,8 @@ def test_auth_set_with_account_preserves_other_accounts(tmp_path, capsys):
     ])
     assert exit_code == 0
     data = json.loads(out.read_text())
-    # sahil's slot untouched
-    assert data["accounts"]["sahil"]["auth_token"] == "tok-sahil"
+    # primary's slot untouched
+    assert data["accounts"]["primary"]["auth_token"] == "tok-primary"
     # dad's slot updated
     assert data["accounts"]["dad"]["auth_token"] == "tok-dad-new"
     assert data["accounts"]["dad"]["cookie_header"] == "sid=dad-new"
