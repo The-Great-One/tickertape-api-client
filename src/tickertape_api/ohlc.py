@@ -21,10 +21,10 @@ returned as metadata so callers can verify the adjustment.
 
 from __future__ import annotations
 
-import math
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Sequence
+from datetime import datetime
+from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,18 +106,20 @@ def _day_key(ts: str) -> str:
 
 def _extract_points(raw: Any) -> list[dict[str, Any]]:
     """Extract the ``points`` list from various Tickertape chart response shapes."""
+    result: list[dict[str, Any]] = []
     if isinstance(raw, list):
         # Indian inter-chart returns a list with one element containing ``points``
         for item in raw:
             if isinstance(item, dict) and "points" in item:
-                return item["points"]
-        # Fallback: if the list itself is points
-        if raw and isinstance(raw[0], dict) and "ts" in raw[0]:
-            return raw
-    elif isinstance(raw, dict):
-        if "points" in raw:
-            return raw["points"]
-    return []
+                result = item["points"]
+                break
+        else:
+            # Fallback: if the list itself is points
+            if raw and isinstance(raw[0], dict) and "ts" in raw[0]:
+                result = raw
+    elif isinstance(raw, dict) and "points" in raw:
+        result = raw["points"]
+    return result
 
 
 def detect_splits(
@@ -144,7 +146,6 @@ def detect_splits(
 
     splits: list[SplitEvent] = []
     prev_price: float | None = None
-    prev_ts: str = ""
 
     for pt in points:
         lp = pt.get("lp")
@@ -171,7 +172,6 @@ def detect_splits(
                         break
 
         prev_price = curr_price
-        prev_ts = ts
 
     return splits
 
@@ -398,12 +398,9 @@ def _build_candle(points: Sequence[dict[str, Any]], label: str) -> Candle:
     # Volume: Tickertape volumes are cumulative within a session.
     # For cross-session groupings (weekly/monthly), use sum of daily deltas.
     vols = [pt.get("v", 0) for pt in points]
-    if len(vols) >= 2:
-        # For daily: delta between last and first cumulative volume
-        # For weekly/monthly: sum of within-day deltas
-        volume = _calc_volume(vols, points)
-    else:
-        volume = float(vols[0]) if vols else 0.0
+    # For daily: delta between last and first cumulative volume
+    # For weekly/monthly: sum of within-day deltas
+    volume = _calc_volume(vols, points) if len(vols) >= 2 else (float(vols[0]) if vols else 0.0)
 
     return Candle(
         timestamp=label,

@@ -17,7 +17,6 @@ import random
 import re
 import sys
 import time
-from urllib.parse import urljoin
 
 # Try curl_cffi first for anti-bot protection; fall back to plain requests
 try:
@@ -97,11 +96,8 @@ def fetch_page_and_cookies() -> tuple[str | None, dict[str, str], str | None]:
         cookies: dict[str, str] = {}
         csrf_token: str | None = None
 
-        # From Set-Cookie headers
-        for cookie_tuple in resp.cookies.items() if hasattr(resp.cookies, 'items') else []:
-            # resp.cookies from curl_cffi might be a dict or RequestsCookieJar
-            pass
-
+        # resp.cookies from curl_cffi might be a dict or RequestsCookieJar
+        # Cookie extraction handled below via hasattr check
         # Extract cookies from response
         if hasattr(resp, 'cookies'):
             cj = resp.cookies
@@ -122,7 +118,7 @@ def fetch_page_and_cookies() -> tuple[str | None, dict[str, str], str | None]:
                 part = part.strip()
                 if "=" in part and not part.lower().startswith(("path=", "domain=", "expires=", "max-age=", "secure", "httponly", "samesite")):
                     name, _, value = part.partition("=")
-                    if name.strip() and not name.strip().lower() in ("path", "domain", "expires", "max-age", "secure", "httponly", "samesite"):
+                    if name.strip() and name.strip().lower() not in ("path", "domain", "expires", "max-age", "secure", "httponly", "samesite"):
                         cookies[name.strip()] = value.strip()
 
         print(f"[1] Got {len(cookies)} initial cookies", file=sys.stderr)
@@ -152,7 +148,7 @@ def fetch_page_and_cookies() -> tuple[str | None, dict[str, str], str | None]:
 
 def generate_recaptcha_token(anchor_url: str) -> str:
     """Use PyPasser to solve the reCAPTCHA and return the token."""
-    print(f"[2] Generating reCAPTCHA token via PyPasser...", file=sys.stderr)
+    print("[2] Generating reCAPTCHA token via PyPasser...", file=sys.stderr)
     print(f"[2] Anchor URL: {anchor_url[:100]}...", file=sys.stderr)
 
     from pypasser import reCaptchaV3
@@ -210,7 +206,7 @@ def call_otp_api(recaptcha_token: str, cookies: dict[str, str], csrf_token: str 
 
         print(f"\n{'='*60}", file=sys.stderr)
         print(f"  Status Code : {resp.status_code}", file=sys.stderr)
-        print(f"  Response Headers:", file=sys.stderr)
+        print("  Response Headers:", file=sys.stderr)
         for k, v in resp.headers.items():
             print(f"    {k}: {v}", file=sys.stderr)
         print(f"{'='*60}\n", file=sys.stderr)
@@ -241,7 +237,7 @@ def main():
     anchor_url, cookies, csrf_token = fetch_page_and_cookies()
     if anchor_url is None:
         anchor_url = build_anchor_url()
-        print(f"[1] Using constructed anchor URL", file=sys.stderr)
+        print("[1] Using constructed anchor URL", file=sys.stderr)
 
     # Step 2: Generate reCAPTCHA token
     recaptcha_token = generate_recaptcha_token(anchor_url)

@@ -8,10 +8,12 @@ XHR requests do.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
+import typing
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from .credentials_store import DEFAULT_CREDENTIALS_PATH, list_accounts, read_credentials_file
 from .exceptions import TickertapeAPIError, TickertapeHTTPError
@@ -52,7 +54,7 @@ class PortfolioClient:
         *,
         impersonate: str = "chrome124",
         timeout: float = 15.0,
-    ):
+    ) -> typing.Iterator[PortfolioClient]:
         """Yield a ``PortfolioClient`` for every account in the credentials file.
 
         When the file is in flat format (no ``"accounts"`` key), yields a single
@@ -184,7 +186,7 @@ class PortfolioClient:
             if not exp:
                 return None
             import time as _time
-            return exp - _time.time()
+            return float(exp) - _time.time()
         except Exception:
             return None
 
@@ -247,7 +249,8 @@ class PortfolioClient:
 
         # Also check response body for the new JWT
         try:
-            data = r.json()
+            json_body = cast(Any, r.json)()
+            data: object = json_body
             if isinstance(data, dict) and "jwt" in data:
                 new_jwt = data["jwt"]
                 if new_jwt and new_jwt != self.cookie_dict.get("jwt", ""):
@@ -316,10 +319,8 @@ class PortfolioClient:
             # Read the full file to preserve other accounts
             full: dict[str, Any] = {}
             if self._credentials_file.exists():
-                try:
+                with contextlib.suppress(OSError, json.JSONDecodeError):
                     full = json.loads(self._credentials_file.read_text())
-                except (OSError, json.JSONDecodeError):
-                    pass
             if not isinstance(full, dict):
                 full = {}
 

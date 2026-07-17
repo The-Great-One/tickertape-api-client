@@ -2,8 +2,8 @@ import json
 from pathlib import Path
 
 from tickertape_api.credentials_store import (
-    read_credentials_file,
     normalize_credential_keys,
+    read_credentials_file,
 )
 
 

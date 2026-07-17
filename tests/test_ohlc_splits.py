@@ -8,11 +8,10 @@ from tickertape_api.ohlc import (
     SplitEvent,
     adjust_points_for_splits,
     detect_splits,
+    group_intraday,
     synthesize_ohlc,
     synthesize_ohlc_with_splits,
-    group_intraday,
 )
-
 
 # ---- detect_splits ---------------------------------------------------------
 

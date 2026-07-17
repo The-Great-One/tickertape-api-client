@@ -10,11 +10,12 @@ Enterprise checks during the OTP flow without relying on the browser's widget.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 try:
     from curl_cffi import requests as _requests
@@ -91,10 +92,8 @@ def write_credentials_file(
         # Multi-account: read existing file, update the named slot
         full: dict[str, Any] = {}
         if credentials_path.exists():
-            try:
+            with contextlib.suppress(OSError, json.JSONDecodeError):
                 full = json.loads(credentials_path.read_text())
-            except (OSError, json.JSONDecodeError):
-                pass
         if not isinstance(full, dict):
             full = {}
         full.setdefault("accounts", {})
@@ -183,7 +182,8 @@ def get_auth_token(
             },
             timeout=timeout,
         )
-    body = resp.json()
+    json_body = cast(Any, resp.json)()
+    body = cast(dict[str, Any], json_body)
     if not body.get("success"):
         errors = body.get("errors", ["unknown error"])
         raise RuntimeError(f"auth/token failed: {errors}")
@@ -256,9 +256,10 @@ def capture_credentials_via_hybrid(
         print(f"  reCAPTCHA widget ID: {widget_id}")
 
         def _fresh_recaptcha() -> str:
-            return page.evaluate(
+            token = page.evaluate(
                 f"() => grecaptcha.enterprise.execute({widget_id})"
             )
+            return str(token)
 
         # Step 3: Send OTP via fetch() from within the browser
         print("Step 3: Sending OTP...")
@@ -433,7 +434,7 @@ def _solve_recaptcha_with_pypasser(
             "Install it with: pip install PyPasser"
         ) from None
 
-    return reCaptchaV3(anchor_url, timeout=timeout)
+    return str(reCaptchaV3(anchor_url, timeout=timeout))
 
 
 def _setup_pypasser_interceptor(page: Any, token: str) -> None:
@@ -598,8 +599,8 @@ def capture_credentials_via_otp(
                 if _btn:
                     _btn.click()
                     _btn_clicked = "clicked:fallback"
-            except Exception:
-                raise RuntimeError(f"Login button not found. Page buttons: {_btn_clicked}")
+            except Exception as exc:
+                raise RuntimeError(f"Login button not found. Page buttons: {_btn_clicked}") from exc
         page.wait_for_timeout(2000)
 
         # Step 2: Set country code (if different from default) and fill phone number.
@@ -687,36 +688,36 @@ def capture_credentials_via_otp(
         # (typically 4 fields for 4-digit OTPs).
         # We also handle the single-field fallback for older UI layouts.
         page.evaluate(
-            f"""(otpCode) => {{
+            """(otpCode) => {
                 // Individual digit inputs (current UI — 4 fields for 4-digit OTP)
                 const digitInputs = document.querySelectorAll('input[maxlength="1"]');
-                if (digitInputs.length >= 4) {{
+                if (digitInputs.length >= 4) {
                     const digits = String(otpCode);
-                    for (let i = 0; i < digitInputs.length && i < digits.length; i++) {{
+                    for (let i = 0; i < digitInputs.length && i < digits.length; i++) {
                         const nativeSetter = Object.getOwnPropertyDescriptor(
                             window.HTMLInputElement.prototype, 'value'
                         ).set;
                         nativeSetter.call(digitInputs[i], digits[i]);
-                        digitInputs[i].dispatchEvent(new Event('input', {{bubbles: true}}));
-                        digitInputs[i].dispatchEvent(new Event('change', {{bubbles: true}}));
-                    }}
+                        digitInputs[i].dispatchEvent(new Event('input', {bubbles: true}));
+                        digitInputs[i].dispatchEvent(new Event('change', {bubbles: true}));
+                    }
                     return;
-                }}
+                }
                 // Fallback: single OTP input field
                 const single = document.querySelector(
                     'input[placeholder*="OTP"], '
                     + 'input[placeholder*="otp"], '
                     + 'input[placeholder*="code"]'
                 );
-                if (single) {{
+                if (single) {
                     const nativeSetter = Object.getOwnPropertyDescriptor(
                         window.HTMLInputElement.prototype, 'value'
                     ).set;
                     nativeSetter.call(single, String(otpCode));
-                    single.dispatchEvent(new Event('input', {{bubbles: true}}));
-                    single.dispatchEvent(new Event('change', {{bubbles: true}}));
-                }}
-            }}""",
+                    single.dispatchEvent(new Event('input', {bubbles: true}));
+                    single.dispatchEvent(new Event('change', {bubbles: true}));
+                }
+            }""",
             otp,
         )
         page.wait_for_timeout(1000)

@@ -193,17 +193,17 @@ def main(argv: list[str] | None = None) -> int:
 
     # ---- portfolio commands (authenticated) ----
     if args.cmd == "refresh-all":
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
         ist = timezone(timedelta(hours=5, minutes=30))
         cached_at = datetime.now(ist).isoformat()
 
         all_accounts = {}
         errors = []
-        for client in PortfolioClient.iter_accounts():
-            name = client._account or "default"
+        for portfolio_client in PortfolioClient.iter_accounts():
+            name = portfolio_client._account or "default"
             try:
-                status = client.holdings_status()
-                mf = client.mf_holdings()
+                status = portfolio_client.holdings_status()
+                mf = portfolio_client.mf_holdings()
                 us_assets = [a for a in status.get("assetsStatus", []) if a.get("type") == "US_STOCK"]
                 us_count = len(us_assets[0].get("meta", {}).get("constituents", [])) if us_assets else 0
                 mf_count = len(mf.get("mfHoldings", [])) if isinstance(mf, dict) else 0
@@ -234,8 +234,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Cache written to {out_path}")
 
         if errors:
-            for e in errors:
-                print(f"  ⚠️  {e}", file=sys.stderr)
+            for err in errors:
+                print(f"  ⚠️  {err}", file=sys.stderr)
             return 1
         return 0
 
