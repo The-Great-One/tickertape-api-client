@@ -11,6 +11,7 @@ Enterprise checks during the OTP flow without relying on the browser's widget.
 from __future__ import annotations
 
 import contextlib
+import importlib
 import json
 import os
 from collections.abc import Mapping, Sequence
@@ -20,7 +21,7 @@ from typing import Any, cast
 try:
     from curl_cffi import requests as _requests
 except ImportError:
-    import requests as _requests  # type: ignore[no-redef]
+    import requests as _requests  # type: ignore[no-redef,unused-ignore]
 
 DEFAULT_CREDENTIALS_PATH = Path.home() / ".config" / "tickertape-api-client" / "credentials.json"
 TICKERTAPE_LOGIN_URL = "https://www.tickertape.in/"
@@ -427,14 +428,15 @@ def _solve_recaptcha_with_pypasser(
         ImportError: If PyPasser is not installed.
     """
     try:
-        from pypasser import reCaptchaV3  # type: ignore[import-untyped]
+        pypasser = importlib.import_module("pypasser")
     except ImportError:
         raise ImportError(
             "PyPasser is required for automatic reCAPTCHA solving. "
             "Install it with: pip install PyPasser"
         ) from None
 
-    return str(reCaptchaV3(anchor_url, timeout=timeout))
+    re_captcha_v3 = cast(Any, pypasser).reCaptchaV3
+    return str(re_captcha_v3(anchor_url, timeout=timeout))
 
 
 def _setup_pypasser_interceptor(page: Any, token: str) -> None:

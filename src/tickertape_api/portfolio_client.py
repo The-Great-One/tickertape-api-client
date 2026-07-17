@@ -235,7 +235,7 @@ class PortfolioClient:
                     "x-csrf-token": csrf,
                 },
                 json={"refreshToken": refresh_token},
-                impersonate=self.impersonate,  # type: ignore[arg-type]
+                impersonate=cast(Any, self.impersonate),
                 timeout=self.timeout,
             )
         except Exception:
@@ -394,7 +394,7 @@ class PortfolioClient:
                 json=json_body,
                 cookies=self.cookie_dict,
                 headers=hdrs,
-                impersonate=self.impersonate,  # type: ignore[arg-type]
+                impersonate=cast(Any, self.impersonate),
                 timeout=self.timeout,
             )
         except Exception as exc:
@@ -402,7 +402,8 @@ class PortfolioClient:
 
         # Parse JSON
         try:
-            data = r.json()  # type: ignore[no-untyped-call]
+            json_body = cast(Any, r.json)()
+            data = cast(dict[str, Any], json_body)
         except json.JSONDecodeError as err:
             raise TickertapeAPIError(
                 f"Tickertape returned non-JSON response ({r.status_code})",
