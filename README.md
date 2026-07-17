@@ -1,21 +1,36 @@
 # tickertape-api-client
 
-A production-ready Python client for useful **public Tickertape web endpoints**.
+A production-ready Python client for **public Tickertape web endpoints** — Indian equities, US stocks/indexes, mutual funds, screeners, ETFs, indices, market mood, and authenticated portfolio access with automatic session refresh.
 
-It covers Indian equities, US stocks/indexes, market status, market mood, screeners, ETFs, indices, and mutual funds — including the useful mutual-fund portfolio/holdings endpoint:
-
-```text
-GET https://api.tickertape.in/mutualfunds/{mfId}/holdings
-```
+[![PyPI version](https://img.shields.io/pypi/v/tickertape-api-client.svg)](https://pypi.org/project/tickertape-api-client/)
+[![Python 3.10+](https://img.shields.io/pypi/pyversions/tickertape-api-client.svg)](https://pypi.org/project/tickertape-api-client/)
+[![License: MIT](https://img.shields.io/pypi/l/tickertape-api-client.svg)](https://github.com/The-Great-One/tickertape-api-client/blob/main/LICENSE)
+[![CI](https://github.com/The-Great-One/tickertape-api-client/actions/workflows/ci.yml/badge.svg)](https://github.com/The-Great-One/tickertape-api-client/actions)
 
 > **Important:** These are undocumented public web-app endpoints reverse-engineered from Tickertape's website. They can change without notice. Use sensible rate limits, caching, and fallbacks. This package does **not** bypass auth, scrape private user data, or include credentials.
 
 ## Installation
 
-This project is currently installed from GitHub; it is **not published on PyPI** unless you explicitly publish a release later.
+```bash
+pip install tickertape-api-client
+```
+
+With portfolio support (curl_cffi for cookie impersonation):
 
 ```bash
-pip install git+https://github.com/The-Great-One/tickertape-api-client.git
+pip install "tickertape-api-client[portfolio]"
+```
+
+With browser-assisted auth capture (Playwright):
+
+```bash
+pip install "tickertape-api-client[auth]"
+```
+
+With everything:
+
+```bash
+pip install "tickertape-api-client[portfolio,auth]"
 ```
 
 For local development:
@@ -28,66 +43,140 @@ pip install -e ".[dev]"
 
 ## Quick start
 
+### Public endpoints (no auth needed)
+
 ```python
 from tickertape_api import TickertapeClient
 
 with TickertapeClient() as tt:
+    # Market status
     print(tt.market_status("IN"))
+
+    # Indian stock quotes
     print(tt.india_quotes(["RELI", ".NSEI"]))
-    print(tt.us_latest_quotes(["IXIC", "AXP", "AAPL"]))
-    print(tt.us_security_chart("AXP", duration="1y"))
-    print(tt.us_stock_overview("AAPL"))
+
+    # US stock quotes
+    print(tt.us_latest_quotes(["AAPL", "MSFT", "GOOGL"]))
+
+    # US stock financials
     print(tt.us_financials("AAPL", "income"))
+
+    # Mutual fund holdings
     print(tt.mutual_fund_holdings("M_MAHD"))
+
+    # Screener query
+    print(tt.screener_query({"match": {"sector": ["Financials"]}, "sortBy": "marketCap", "sortOrder": -1}))
 ```
 
-## CLI
+### Authenticated portfolio (session cookies)
+
+```python
+from tickertape_api import PortfolioClient
+
+# Uses cookies stored at ~/.config/tickertape-api-client/credentials.json
+with PortfolioClient() as pc:
+    # Mutual fund holdings
+    print(pc.mf_holdings())
+
+    # Stock holdings
+    print(pc.stock_holdings())
+
+    # Portfolio summary
+    print(pc.portfolio_summary())
+
+    # US holdings
+    print(pc.us_holdings())
+
+    # Watchlists
+    print(pc.watchlists())
+```
+
+### CLI
 
 ```bash
+# Public data
 tickertape market-status IN
 tickertape quote RELI .NSEI
-tickertape us-quote IXIC AXP AAPL
-tickertape us-chart AXP --duration 1y
+tickertape us-quote AAPL MSFT GOOGL
+tickertape us-chart AAPL --duration 1y
 tickertape mf-search "mahindra focused"
 tickertape mf-holdings M_MAHD
+
+# Portfolio (requires auth setup)
+tickertape portfolio-summary
+tickertape portfolio-mf
 ```
 
-For premium fields, use either a pure CLI credential setup or the browser-assisted session capture flow.
+## Authentication
 
-Pure CLI setup, if you already copied a token/cookie from a logged-in Tickertape session:
+### Option 1: CLI credential setup
+
+If you already have a cookie/token from a logged-in Tickertape browser session:
 
 ```bash
-# safer for shell history: paste cookie through stdin
+# Safer for shell history: paste cookie through stdin
 printf '%s' 'session_cookie_here' | tickertape auth-set --cookie-stdin
 
-# or pass explicitly
-# tickertape auth-set --token 'bearer_token_here' --cookie 'raw_cookie_header_here'
+# Or pass explicitly
+tickertape auth-set --token 'bearer_token_here' --cookie 'raw_cookie_header_here'
 
 tickertape auth-status
 ```
 
-This writes `~/.config/tickertape-api-client/credentials.json` for `TickertapeClient.from_env()`.
+### Option 2: Browser-assisted capture
 
-Browser-assisted capture opens the real Tickertape site, lets you complete the normal login/CAPTCHA/2FA flow yourself, then saves only the resulting Tickertape cookies and visible auth token locally:
+Opens the real Tickertape site, lets you complete the normal login/CAPTCHA/2FA flow, then saves only the resulting cookies locally:
 
 ```bash
-pip install "git+https://github.com/The-Great-One/tickertape-api-client.git#egg=tickertape-api-client[auth]"
+pip install "tickertape-api-client[auth]"
 python -m playwright install chromium
 tickertape auth-capture
 ```
 
-Credentials are saved to:
+### Option 3: Programmatic
 
-```text
-~/.config/tickertape-api-client/credentials.json
+```python
+from tickertape_api import TickertapeClient
+
+# Pass explicitly
+client = TickertapeClient(
+    auth_token="<bearer-token>",
+    cookie_header="<raw Cookie header from your browser session>",
+)
+
+# Or from env vars
+# export TICKERTAPE_AUTH_TOKEN='...'
+# export TICKERTAPE_COOKIE='...'
+client = TickertapeClient.from_env()
 ```
 
-The command does **not** submit your password, bypass 2FA/CAPTCHA, or replicate private login APIs.
+Credentials are saved to `~/.config/tickertape-api-client/credentials.json`.
 
-### Multi-Account Support
+The auth commands do **not** submit passwords, bypass 2FA/CAPTCHA, or replicate private login APIs.
 
-To manage multiple Tickertape accounts (e.g., personal and family), use the
-`--account` flag on any CLI command:
+## Session refresh (no relogin needed)
+
+The `PortfolioClient` automatically refreshes your Tickertape session the same way the browser does:
+
+1. When the JWT nears expiry (~24h), it calls `POST https://auth.api.tickertape.in/auth/refresh` with your persisted cookies (no body)
+2. The server returns a new JWT + CSRF token
+3. New credentials are persisted back to disk
+4. On API `401`, it also forces a refresh and retries the request once
+
+This means your session stays alive across days/weeks of inactivity — just like your browser. No relogin needed unless the server-side session itself expires.
+
+```python
+from tickertape_api import PortfolioClient
+
+# Force a refresh manually
+with PortfolioClient(account="primary") as pc:
+    pc._refresh_jwt_if_needed(force=True)  # refresh now
+    print(pc.mf_holdings())  # uses fresh JWT
+```
+
+### Multi-account support
+
+Manage multiple Tickertape accounts (personal, family, etc.):
 
 ```bash
 # Capture credentials for different accounts
@@ -96,31 +185,12 @@ tickertape auth-browserless --account family  9123456789:5678
 
 # Use a specific account
 tickertape --account primary portfolio-summary
-tickertape --account dad   portfolio-mf
+tickertape --account family  portfolio-mf
 
-# Set default account via environment variable
+# Set default via environment variable
 export TICKERTAPE_ACCOUNT=primary
 tickertape portfolio-summary  # uses "primary"
 ```
-
-The credentials file stores accounts in an `"accounts"` dict:
-
-```json
-{
-  "accounts": {
-    "primary": {
-      "cookie_header": "...",
-      "cookie_dict": {"jwt": "...", ...}
-    },
-    "dad": {
-      "cookie_header": "...",
-      "cookie_dict": {"jwt": "...", ...}
-    }
-  }
-}
-```
-
-Programmatic usage:
 
 ```python
 from tickertape_api import PortfolioClient, TickertapeClient
@@ -130,61 +200,58 @@ with PortfolioClient(account="primary") as pc:
     print(pc.mf_holdings())
 
 # TickertapeClient with named account
-with TickertapeClient.from_env(account="dad") as tt:
+with TickertapeClient.from_env(account="family") as tt:
     print(tt.screener_screens())
+
+# Iterate all accounts
+for account, client in PortfolioClient.iter_accounts():
+    print(f"{account}: {client.portfolio_summary()}")
 ```
 
-The old flat format (top-level `cookie_header` / `cookie_dict` keys) continues
-to work and is treated as the default account.
+The credentials file uses an `"accounts"` dict:
+
+```json
+{
+  "accounts": {
+    "primary": {
+      "cookie_header": "...",
+      "cookie_dict": {"jwt": "...", "x-csrf-token-tickertape-prod": "..."}
+    },
+    "family": {
+      "cookie_header": "...",
+      "cookie_dict": {"jwt": "...", "x-csrf-token-tickertape-prod": "..."}
+    }
+  }
+}
+```
+
+The old flat format (top-level keys) continues to work as the default account.
 
 ## Endpoint coverage
 
 ### Market status
 
 ```python
-tt.market_status("IN")
-tt.market_status("US")
+tt.market_status("IN")   # India
+tt.market_status("US")    # US
 ```
 
-Backed by:
+Backed by: `GET https://gms-api.tickertape.in/market/{market}/status`
 
-```text
-GET https://gms-api.tickertape.in/market/{market}/status
-```
-
-Useful fields:
-
-- `isOpen`
-- `isHoliday`
-- `isWeekend`
-- `currentWindow`
-- `nextWindow`
-- `prevWindow`
-- `reason`
+Fields: `isOpen`, `isHoliday`, `isWeekend`, `currentWindow`, `nextWindow`, `reason`
 
 ### Latest quotes
 
 ```python
 tt.india_quotes(["RELI", ".NSEI"])
-tt.us_latest_quotes(["IXIC", "GSPC", "DJI", "AXP"])
+tt.us_latest_quotes(["AAPL", "MSFT", "GOOGL"])
 tt.forex_latest("USDINR")
 ```
 
 Backed by:
-
-```text
-GET https://quotes-api.tickertape.in/quotes?sids=RELI,.NSEI
-GET https://gms-api.tickertape.in/quotes/US/latest?tickers=IXIC,AXP
-GET https://gms-api.tickertape.in/quotes/FOREX/latest?tickers=USDINR
-```
-
-US quote fields observed:
-
-- `p`: latest price/index level
-- `lcp`: last close price
-- `v`: volume
-- `t`: timestamp in milliseconds
-- `s`: symbol
+- `GET https://quotes-api.tickertape.in/quotes?sids=RELI,.NSEI`
+- `GET https://gms-api.tickertape.in/quotes/US/latest?tickers=AAPL,MSFT`
+- `GET https://gms-api.tickertape.in/quotes/FOREX/latest?tickers=USDINR`
 
 ### Indian stocks
 
@@ -192,10 +259,13 @@ US quote fields observed:
 tt.stock_info("RELI")
 tt.stock_summary("RELI")
 tt.stock_intra_chart("RELI")
-tt.stock_inter_chart("RELI", start=1748442493416, end=1779978493416)
+tt.stock_inter_chart("RELI", duration="1y")
 tt.stock_news("RELI")
 tt.stock_checklists("RELI")
 tt.stock_financials("RELI", statement="income", period="annual", view="normal")
+tt.stock_ohlc("RELI")               # OHLC candles
+tt.stock_ohlc_with_splits("RELI")   # split-adjusted OHLC
+tt.stock_intraday_ohlc("RELI")      # intraday candles
 ```
 
 ### US securities
@@ -205,142 +275,62 @@ tt.us_asset_info(["AAPL", "MSFT"])
 tt.us_asset_info(["VOO", "GLD"], asset_type="etfs")
 tt.us_stock_overview("AAPL")
 tt.us_etf_overview("VOO")
-tt.us_chart("AAPL", "1D")   # intraday, maps to duration=1d
-tt.us_chart("AAPL", "5Y")   # historical, maps to duration=5y
-tt.us_security_chart("AXP", duration="1y")
-tt.us_security_chart("AAPL", duration="5y")
+tt.us_chart("AAPL", "1D")            # intraday
+tt.us_chart("AAPL", "5Y")            # historical
+tt.us_security_chart("AAPL", duration="1y")
 tt.us_financials("AAPL", "income")
 tt.us_financials("AAPL", "balancesheet")
 tt.us_financials("AAPL", "cashflow")
-tt.us_filters()
+tt.us_ohlc("AAPL", duration="1y")    # OHLC candles
+tt.us_filters()                       # available screener filters
 ```
-
-Backed by:
-
-```text
-GET https://gms-api.tickertape.in/US/securities/info?ticker=AAPL,MSFT
-GET https://gms-api.tickertape.in/US/etfs/info?ticker=VOO,GLD
-GET https://gms-api.tickertape.in/US/securities/AAPL/overview
-GET https://gms-api.tickertape.in/US/etfs/VOO/overview
-GET https://gms-api.tickertape.in/US/securities/AAPL/charts/intra?duration=1d
-GET https://gms-api.tickertape.in/US/securities/{ticker}/charts/inter?duration=1y
-GET https://gms-api.tickertape.in/US/securities/AAPL/financials/income?view=normal
-GET https://gms-api.tickertape.in/US/securities/AAPL/financials/balancesheet?view=normal
-GET https://gms-api.tickertape.in/US/securities/AAPL/financials/cashflow?view=normal
-GET https://gms-api.tickertape.in/US/filters
-```
-
-Observed response fields:
-
-- `marketStatus.start`
-- `marketStatus.end`
-- `points[].ts`
-- `points[].lp`
-- `points[].v`
-- `h`: high over period
-- `l`: low over period
-- `r`: return over period
 
 ### Mutual funds
 
 ```python
-# Full MF universe. Search locally by name/isin/mfId.
+# Full MF universe (search locally by name/isin/mfId)
 universe = tt.mutual_funds_list()["universe"]
 
-# Fund details.
+# Fund details
 tt.mutual_fund_info("M_MAHD")
 tt.mutual_fund_summary("M_MAHD")
 
-# Portfolio / holdings — the endpoint you asked for.
+# Portfolio / holdings
 holdings = tt.mutual_fund_holdings("M_MAHD")
 print(holdings["currentAllocation"][:5])
 
-# Other useful MF endpoints.
+# Other MF endpoints
 tt.mutual_fund_chart("M_MAHD", duration="1y")
 tt.mutual_fund_sip_chart("M_MAHD")
 tt.mutual_fund_fund_managers("M_MAHD")
 tt.mutual_fund_checklists("M_MAHD")
 tt.mutual_fund_widget("M_MAHD")
-```
-
-The holdings endpoint returns `currentAllocation`. Equity rows include useful fields such as:
-
-```json
-{
-  "type": "Equity",
-  "title": "Reliance Industries Ltd",
-  "rating": "Equity",
-  "sid": "RELI",
-  "ticker": "RELIANCE",
-  "slug": "/stocks/reliance-industries-RELI",
-  "latest": 7.00779988662863,
-  "change3m": 1.4262424028198906
-}
+tt.mutual_fund_ohlc("M_MAHD", duration="1y")  # OHLC candles
 ```
 
 ### Screeners
 
 ```python
+# Stock screener
 tt.screener_filters()
 tt.screener_prebuilt()
-tt.screener_query({"match": {"sector": ["Financials"]}, "sortBy": "marketCap", "sortOrder": -1})
+tt.screener_query({
+    "match": {"sector": ["Financials"]},
+    "sortBy": "marketCap",
+    "sortOrder": -1,
+})
 
+# Mutual fund screener
 tt.mutual_fund_screener_filters()
 tt.mutual_fund_screener_prebuilt()
-tt.mutual_fund_screener({"match": {"option": ["Growth"]}, "sortBy": "aum", "sortOrder": -1})
-```
-
-Some screener queries may require auth server-side. The client exposes the endpoints but will raise clear `TickertapeHTTPError` / `TickertapeAPIError` if Tickertape rejects a request.
-
-The complete stock screener filter list is documented in [`docs/screener-filters.md`](docs/screener-filters.md), including category, `label`, display name, and premium/locked status.
-
-Premium screener fields can be requested only with a legitimate logged-in Tickertape session that has access to them. The client does not log in, bypass access controls, or store credentials unless you explicitly create a local credentials file or run the browser-assisted `tickertape auth-capture` flow; it only forwards user-supplied auth material:
-
-```python
-from tickertape_api import TickertapeClient
-
-# Option 1: pass explicitly
-client = TickertapeClient(
-    auth_token="<bearer-token>",
-    cookie_header="<raw Cookie header from your browser session>",
-)
-
-# Option 2: read from env
-# export TICKERTAPE_AUTH_TOKEN='...'
-# export TICKERTAPE_COOKIE='...'
-client = TickertapeClient.from_env()
-
-# Option 3: persistent local credentials file
-# mkdir -p ~/.config/tickertape-api-client
-# chmod 700 ~/.config/tickertape-api-client
-# cat > ~/.config/tickertape-api-client/credentials.json <<'JSON'
-# {"auth_token": "...", "cookie_header": "..."}
-# JSON
-# chmod 600 ~/.config/tickertape-api-client/credentials.json
-client = TickertapeClient.from_env()
-
-# Option 4: CLI-only credential setup after manually copying session material
-# printf '%s' 'session_cookie_here' | tickertape auth-set --cookie-stdin
-# tickertape auth-status
-client = TickertapeClient.from_env()
-
-# Option 5: browser-assisted capture of your logged-in session
-# pip install "git+https://github.com/The-Great-One/tickertape-api-client.git#egg=tickertape-api-client[auth]"
-# python -m playwright install chromium
-# tickertape auth-capture
-client = TickertapeClient.from_env()
-
-client.screener_query({
-    "match": {},
-    "sortBy": "mrktCapf",
+tt.mutual_fund_screener({
+    "match": {"option": ["Growth"]},
+    "sortBy": "aum",
     "sortOrder": -1,
-    "project": ["estrvng"],  # premium: 1Y Forward Revenue Growth
-    "offset": 0,
-    "count": 10,
 })
 ```
 
-Without access, Tickertape currently returns a clear 403 payload such as `No access for estrvng`.
+The complete stock screener filter list is in [`docs/screener-filters.md`](docs/screener-filters.md).
 
 ### ETFs and indices
 
@@ -360,6 +350,28 @@ tt.product_banners()
 tt.platform_smallcase_widget(["fd", "smallcases"])
 ```
 
+### Portfolio (authenticated)
+
+```python
+from tickertape_api import PortfolioClient
+
+with PortfolioClient() as pc:
+    pc.mf_holdings()           # Mutual fund holdings
+    pc.stock_holdings()        # Stock holdings
+    pc.us_holdings()           # US holdings
+    pc.portfolio_summary()     # Overall summary
+    pc.holdings_status()       # Holdings status
+    pc.quote_portfolio()       # Portfolio quotes
+    pc.watchlists()            # User watchlists
+```
+
+### Search
+
+```python
+tt.search("reliance")
+tt.suggest("reliance")
+```
+
 ## Error handling
 
 ```python
@@ -368,19 +380,32 @@ from tickertape_api import TickertapeAPIError, TickertapeHTTPError, TickertapeCl
 try:
     TickertapeClient().stock_info("BAD")
 except TickertapeHTTPError as exc:
-    print(exc.status_code, exc.payload)
+    print(f"HTTP {exc.status_code}: {exc.payload}")
 except TickertapeAPIError as exc:
-    print(exc.payload)
+    print(f"API error: {exc.payload}")
 ```
 
 ## Production guidance
 
-- Treat this as a **public-web-data client**, not an exchange-grade market data feed.
-- Cache responses where possible.
-- Add retries/backoff in your application layer for batch jobs.
-- Keep request rates low.
-- Keep Kite / broker / exchange data as the source of truth for trading-critical Indian execution.
-- Build fallbacks because endpoints are undocumented and may move or change shape.
+- Treat this as a **public-web-data client**, not an exchange-grade market data feed
+- Cache responses where possible
+- Add retries/backoff in your application layer for batch jobs
+- Keep request rates low
+- Keep Kite/broker/exchange data as the source of truth for trading-critical execution
+- Build fallbacks because endpoints are undocumented and may change
+
+## API reference
+
+The complete endpoint inventory is in [`docs/endpoints.md`](docs/endpoints.md) (227+ endpoints across 4 hosts).
+
+### Key classes
+
+| Class | Purpose | Transport |
+|-------|---------|-----------|
+| `TickertapeClient` | Public endpoints (stocks, MFs, screeners, US, etc.) | httpx |
+| `PortfolioClient` | Authenticated portfolio endpoints | curl_cffi (cookie impersonation) |
+| `Candle` | OHLC candle data structure | — |
+| `OHLCResult` | OHLC result with splits | — |
 
 ## Development
 
@@ -390,12 +415,14 @@ cd tickertape-api-client
 python -m venv .venv
 . .venv/bin/activate
 pip install -e ".[dev]"
-pytest
+
+# Run checks
 ruff check .
 mypy src
+pytest
 python -m build
 ```
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE)

@@ -4,24 +4,26 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tickertape-api-client"
-version = "0.1.1"
-description = "Typed Python client for public Tickertape web endpoints"
+version = "1.0.0"
+description = "Typed Python client for public Tickertape web endpoints — Indian equities, US stocks, mutual funds, screeners, and authenticated portfolio access"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
-authors = [{name = "Sahil Goel"}]
-keywords = ["tickertape", "stocks", "mutual-funds", "market-data", "india", "us-stocks"]
+authors = [{name = "tickertape-api-client contributors"}]
+keywords = ["tickertape", "stocks", "mutual-funds", "market-data", "india", "us-stocks", "portfolio", "screener", "ohlc"]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
   "Intended Audience :: Financial and Insurance Industry",
   "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Topic :: Office/Business :: Financial",
   "Typing :: Typed",
 ]
 dependencies = ["httpx>=0.25,<1"]
@@ -37,6 +39,8 @@ Homepage = "https://github.com/The-Great-One/tickertape-api-client"
 Documentation = "https://github.com/The-Great-One/tickertape-api-client#readme"
 Source = "https://github.com/The-Great-One/tickertape-api-client"
 Issues = "https://github.com/The-Great-One/tickertape-api-client/issues"
+Changelog = "https://github.com/The-Great-One/tickertape-api-client/releases"
+PyPI = "https://pypi.org/project/tickertape-api-client/"
 
 [project.scripts]
 tickertape = "tickertape_api.cli:main"
