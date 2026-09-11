@@ -206,7 +206,10 @@ def main(argv: list[str] | None = None) -> int:
                 mf = portfolio_client.mf_holdings()
                 us_assets = [a for a in status.get("assetsStatus", []) if a.get("type") == "US_STOCK"]
                 us_count = len(us_assets[0].get("meta", {}).get("constituents", [])) if us_assets else 0
-                mf_count = len(mf.get("mfHoldings", [])) if isinstance(mf, dict) else 0
+                # NOTE: mf_holdings() returns {"fundDetails": [...], "lastUpdated": ...}.
+                # There is no "mfHoldings" key — using it silently reports 0 MF for every account.
+                mf_count = len(mf.get("fundDetails", [])) if isinstance(mf, dict) else 0
+                sip_count = len(mf.get("sips", [])) if isinstance(mf, dict) else 0
                 stock_assets = [a for a in status.get("assetsStatus", []) if a.get("type") == "STOCK"]
                 stock_count = len(stock_assets[0].get("meta", {}).get("constituents", [])) if stock_assets else 0
                 all_accounts[name] = {
@@ -214,7 +217,7 @@ def main(argv: list[str] | None = None) -> int:
                     "mf_holdings": mf,
                     "cached_at": cached_at,
                 }
-                print(f"  {name}: {stock_count} stocks, {us_count} US, {mf_count} MF")
+                print(f"  {name}: {stock_count} stocks, {us_count} US, {mf_count} MF, {sip_count} SIP")
             except Exception as e:
                 errors.append(f"{name}: {type(e).__name__}: {e}")
                 print(f"  {name}: FAILED — {type(e).__name__}: {e}")
