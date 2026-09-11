@@ -102,7 +102,10 @@ def test_screener_query_uses_post_body():
             return_value=httpx.Response(200, json={"success": True, "data": {"results": []}})
         )
         assert TickertapeClient().mutual_fund_screener(query) == {"results": []}
-        assert route.calls.last.request.content == b'{"match":{"option":["Growth"]},"sortBy":"aum","sortOrder":-1}'
+        # Assert the payload is semantically the query. Byte-exact comparison would
+        # pin httpx's json.dumps whitespace, not this client's behaviour.
+        assert json.loads(route.calls.last.request.content) == query
+        assert route.calls.last.request.headers["content-type"] == "application/json"
 
 
 def test_stock_screener_query_uses_post_body():
@@ -112,9 +115,8 @@ def test_stock_screener_query_uses_post_body():
             return_value=httpx.Response(200, json={"success": True, "data": {"results": []}})
         )
         assert TickertapeClient().screener_query(query) == {"results": []}
-        assert route.calls.last.request.content == (
-            b'{"match":{},"sortBy":"mrktCapf","sortOrder":-1,"offset":0,"count":5}'
-        )
+        assert json.loads(route.calls.last.request.content) == query
+        assert route.calls.last.request.headers["content-type"] == "application/json"
 
 
 def test_auth_token_and_cookie_header_are_sent_to_premium_endpoints():
