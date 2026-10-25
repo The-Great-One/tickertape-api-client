@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://via.placeholder.com/120x120.png?text=TT" alt="tickertape-api-client logo" width="120" height="120" />
+<img src="icon.png" alt="tickertape-api-client logo" width="120" height="120" />
 
 # tickertape-api-client
 
